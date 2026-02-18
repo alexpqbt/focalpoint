@@ -31,7 +31,6 @@ async function makeCall() {
   const configuration: RTCConfiguration = {'iceServers': []}
   const peerConnection = new RTCPeerConnection(configuration)
   socket.addEventListener("message", async (event: MessageEvent<string>) => {
-    console.log(event)
     const message: SignalMessage = JSON.parse(event.data)
     if ("answer" in message) {
       const remoteDescription = new RTCSessionDescription(message.answer)
