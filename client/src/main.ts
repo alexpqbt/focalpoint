@@ -9,7 +9,7 @@ const displayMediaOptions = {
 
 type SignalMessage = { offer: RTCSessionDescriptionInit } | { answer: RTCSessionDescriptionInit }
 
-const socket = new WebSocket("ws://localhost:6969")
+const socket = new WebSocket(import.meta.env.VITE_SIGNALING_SERVER)
 
 async function startCapture() {
   try {
