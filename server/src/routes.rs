@@ -196,13 +196,8 @@ async fn handle_signal(signal: SignalMessage, sender_peer: &Peer, room: &RoomSta
         {
             let peer = room.teacher_id.as_ref().filter(|teacher| teacher.id.to_string() == target).expect("Peer not found for ICE candidacy");
 
-            if let Ok(txt) = serde_json::to_string(&SignalMessage::Ice 
+            if let Ok(txt) = serde_json::to_string(&SignalMessage::Ice { candidate, target_id: Some(sender_peer.id.to_string()), })
             {
-                candidate,
-                target_id: Some(sender_peer.id.to_string()), 
-            })
-            {
-
                 let _ = peer.sender_channel.send(Message::Text(txt.into()));
             }
             else
