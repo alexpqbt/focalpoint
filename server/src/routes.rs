@@ -5,6 +5,7 @@ use axum::extract::{Path, State};
 use axum::response::IntoResponse;
 use futures_util::stream::{StreamExt, SplitStream};
 use tracing::{info, debug, error};
+use uuid::Uuid;
 
 use crate::error::Error;
 use crate::state::{ RoomState, AppState};
@@ -23,20 +24,24 @@ pub fn app_router(state: AppState) -> Router
 {
     Router::new()
         .route("/", get(health_check))
-        .route("/ws", get(websocket_handler))
+        .route("/ws/{room_id}", get(websocket_handler))
         .with_state(state)
 }
 
 async fn websocket_handler(
     ws: WebSocketUpgrade,
+    Path(room_id): Path<String>,
+    State(state): State<AppState>,
 ) -> impl IntoResponse
 {
     ws.on_failed_upgrade(|error| error!("--> {:<12} - An error has occured! - {error}", "HANDLER"))
-        .on_upgrade(|socket|handle_socket(socket)) 
+        .on_upgrade(|socket|handle_socket(socket, room_id, state)) 
 }
 
-async fn handle_socket(mut socket: WebSocket)
+async fn handle_socket(mut socket: WebSocket, room_id: String, state: AppState)
 {
+
+    let room = state.rooms.entry(room_id);
 
     while let Some(msg) = socket.recv().await
     {
