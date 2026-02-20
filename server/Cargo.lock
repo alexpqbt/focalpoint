@@ -1904,12 +1904,14 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "dashmap",
+ "futures-util",
  "serde",
  "serde_json",
  "tokio",
  "tower-http",
  "tracing",
  "tracing-subscriber",
+ "uuid",
  "webrtc",
 ]
 
