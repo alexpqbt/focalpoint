@@ -62,16 +62,16 @@ async fn test_classroom_websocket_flow()
     {
         "type": "answer",
         "sdp": answer_sdp,
-        "target_id":  uuid::Uuid::new_v4().to_string(),
+        "target_id":  null,
     }).to_string();
 
     teacher_ws.send(WsMessage::Text(answer_msg.into())).await.expect("Failed to send teacher answer msg!");
 
-    if let Some(msg) = student1_ws.next().await
+    if let Ok(msg) = tokio::time::timeout( std::time::Duration::from_secs(5), student1_ws.next()).await
     {
         match msg
         {
-            Ok(WsMessage::Text(txt)) =>
+            Some(Ok(WsMessage::Text(txt))) =>
             {
                 assert!(txt.contains(answer_sdp), "Student1 should receive teacher answer");
             },
@@ -83,7 +83,6 @@ async fn test_classroom_websocket_flow()
     {
         panic!("PANIC A TTHE DISCO!");
     }
-
     teacher_ws.close(None).await.expect("closing failed???");
 
     for student_ws in [&mut student1_ws, &mut student2_ws]
