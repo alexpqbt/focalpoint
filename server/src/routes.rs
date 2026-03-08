@@ -99,6 +99,15 @@ async fn handle_socket(socket: WebSocket, room_id: String, state: AppState)
             Role::Student =>
             {
                 room.peers.insert(peer_id.to_string(), peer.clone());
+
+                if let Some(teacher) = &room.teacher_id
+                {
+                    let notification = serde_json::to_string(&SignalMessage::PeerJoined {
+                        peer_id: peer_id.to_string(),
+                    }).unwrap();
+
+                    let _ = teacher.sender_channel.send(Message::Text(notification.into()));
+                }
             }
         };
 
@@ -149,38 +158,51 @@ async fn handle_signal(signal: SignalMessage, room_id: &str, sender_id: Uuid, st
 
     match signal
     {
-        SignalMessage::Offer {sdp, ..} => 
+        SignalMessage::Offer {sdp, target_id: Some(target)} if room.peers.contains_key(&target) => 
+        {
+            let student = &room.peers[&target];
+
+            if let Ok(txt) = serde_json::to_string(&SignalMessage::Offer { sdp, target_id: Some(sender_id.to_string()) })
+            {
+                let _ = student.sender_channel.send(Message::Text(txt.into()));
+            }
+            else
+            { 
+                error!("Failed to serialize Signal Message");
+            }
+        },
+    
+        SignalMessage::Answer {sdp, ..} => 
         {
             if let Some(teacher) = &room.teacher_id
             {
-                if let Ok(txt) = serde_json::to_string(&SignalMessage::Offer { sdp, target_id: Some(teacher.id.to_string()) })
+                if let Ok(txt) = serde_json::to_string(&SignalMessage::Answer { sdp, target_id: Some(sender_id.to_string()) })
                 {
                     let _ = teacher.sender_channel.send(Message::Text(txt.into()));
-                }
+                } 
                 else
                 { 
                     error!("Failed to serialize Signal Message");
                 }
             }
         },
-    
-        SignalMessage::Answer {sdp, target_id: Some(target)} if room.peers.contains_key(&target) => 
-        {
-            let student = &room.peers[&target];
-
-            if let Ok(txt) = serde_json::to_string(&SignalMessage::Answer { sdp, target_id: Some(sender_id.to_string()) })
-            {
-                let _ = student.sender_channel.send(Message::Text(txt.into()));
-            } 
-            else
-            { 
-                error!("Failed to serialize Signal Message");
-            }
-        },
 
         SignalMessage::Ice { candidate, target_id: Some(target) } => 
         {
-            let peer = room.teacher_id.as_ref().filter(|teacher| teacher.id.to_string() == target).expect("Peer not found for ICE candidacy");
+            let peer = match room.teacher_id.as_ref().filter(|teacher| teacher.id.to_string() == target)
+            {
+                Some(val) => val, 
+                None => match room.peers.get(&target)
+                {
+                    Some(peer) => peer,
+                    None =>
+                    {
+                        error!("Peer not found at {}", target);
+                        return;
+                    }
+                }
+            };
+
 
             if let Ok(txt) = serde_json::to_string(&SignalMessage::Ice { candidate, target_id: Some(sender_id.to_string()), })
             {
