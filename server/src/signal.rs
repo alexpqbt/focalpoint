@@ -17,4 +17,7 @@ pub enum SignalMessage
 
     #[serde(rename = "ice-candidate")]
     Ice { candidate: String, target_id: Option<String> },
+
+    #[serde(rename = "peers-joined")]
+    PeerJoined { peer_id: String },
 }
