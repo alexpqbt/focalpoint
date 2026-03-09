@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title></title>
+    <link href="/src/style.css" rel="stylesheet">
+  </head>
+  <body class="bg-gray-100">
+    <main class="flex min-h-screen">
+
+      <div class="flex-4 p-5">
+        <video
+          class="rounded-lg mb-2 w-full h-full bg-black"
+          id="video"
+          autoplay
+          playsinline
+        ></video>
+      </div>
+      <div class="flex-1 flex flex-col border-l border-gray-600 p-4 gap-4">
+        <h2 class="font-bold text-lg text-center"> Is this fr chat? </h2>
+        <div class="flex-1 border rounded-lg p-3 overflow-y-auto" id="chat-messages">
+         
+        </div>
+        <input class="border rounded-lg p-2" type="text" id="chat-input" value="" placeholder="Type a message..."/>
+      </div>
+    </main>
+    <script type="module" src="/src/student.ts"></script>
+  </body>
+</html>
