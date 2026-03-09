@@ -6,20 +6,20 @@
     <title>Test Vite</title>
     <link href="/src/style.css" rel="stylesheet" />
   </head>
-  <body>
-    <div class="p-5">
-      <video
-        class="rounded-lg mb-2 h-164 aspect-video bg-black"
-        id="video"
-        autoplay
-      ></video>
-      <button class="button bg-blue-500 text-white" id="start">
-        Start Capture
-      </button>
-      <button class="button bg-gray-500 text-white" id="stop">
-        Stop Capture
-      </button>
-      <script type="module" src="/src/main.ts"></script>
-    </div>
+  <body class="bg-gray-100">
+    <main class = "flex items-center justify-center min-h-screen">
+      <div class ="flex flex-col w-75 h-100 border-2 rounded shadow-xl justify-center items-center gap-10">
+        <h1 class="font-bold text-lg"> What are you? </h1>
+        <h2 class=" font-semibold text-md"> Pick one to continue </h2>
+
+        <button class="bg-blue-600 border border-black shadow-md rounded-md w-35 px-2 py-1 text-white duration-300 ease-in-out hover:bg-indigo-500  hover:scale-110" type="button" onclick="window.location.href='pages/teacher.html'">
+          Teacher
+        </button>
+        <button class="bg-blue-600 border border-black shadow-md rounded-md w-35 px-2 py-1 text-white duration-300 ease-in-out hover:bg-indigo-500  hover:scale-110" type="button" onclick="window.location.href='pages/student.html'">
+          Student
+        </button>
+        </div>
+      </div>
+    </main>
   </body>
 </html>
