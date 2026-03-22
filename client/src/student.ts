@@ -21,6 +21,7 @@ const server = import.meta.env.VITE_SIGNALING_SERVER
 async function joinRoom(roomId: string) {
   const wsConnection = `${server}/ws/${roomId}`;
   const socket = new WebSocket(wsConnection);
+  const configuration: RTCConfiguration = { 'iceServers': [] };
 
   socket.addEventListener('open', async () => {
     console.log("Websocket is open. You may now join");
@@ -33,7 +34,32 @@ async function joinRoom(roomId: string) {
       socket.send(JSON.stringify(join));
     }
     catch (e: any) {
-      console.error("Oh my days, failed to send join and offer request.", e)
+      console.error("Oh my days, failed to send join and offer request.", e);
+    }
+
+  });
+
+  socket.addEventListener('message', async (event: MessageEvent<string>) => {
+    const message: SignalMessage = JSON.parse(event.data);
+
+    if (message.type === "offer") {
+
+      const teacherConnection = new RTCPeerConnection(configuration);
+
+      await teacherConnection.setRemoteDescription({ type: "offer", sdp: message.sdp });
+
+      const answer = await teacherConnection.createAnswer();
+      teacherConnection.setLocalDescription(answer);
+
+      const remoteDescription: SignalMessage =
+      {
+        type: "answer",
+        sdp: answer.sdp!,
+        target_id: message.target_id,
+      };
+
+      socket.send(JSON.stringify(remoteDescription));
     }
   });
+
 }
