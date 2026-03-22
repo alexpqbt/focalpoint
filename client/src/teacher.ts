@@ -1,3 +1,5 @@
+import type { SignalMessage } from "./signal";
+
 const videoElem = document.getElementById("video") as HTMLMediaElement
 const startBtn = document.getElementById("start")!
 const stopBtn = document.getElementById("stop")!
@@ -6,13 +8,6 @@ const displayMediaOptions = {
   video: true,
   audio: false
 }
-
-type SignalMessage =
-  | { type: "join", role: "teacher" | "student" }
-  | { type: "offer", sdp: string, target_id?: string | null }
-  | { type: "answer", sdp: string, target_id?: string | null }
-  | { type: "ice-candidate", candidate: string, target_id?: string | null }
-  | { type: "peers-joined", peer_id: string }
 
 const server = import.meta.env.VITE_SIGNALING_SERVER
 const testRoom = "room_1"
