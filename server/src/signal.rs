@@ -1,11 +1,13 @@
 use serde::{Deserialize, Serialize};
 
+use crate::role::Role;
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum SignalMessage
 {
     #[serde(rename = "join")]
-    Join { room_id: String },
+    Join { role: Role },
 
     #[serde(rename = "offer")]
     Offer { sdp: String, target_id: Option<String> },
@@ -15,4 +17,7 @@ pub enum SignalMessage
 
     #[serde(rename = "ice-candidate")]
     Ice { candidate: String, target_id: Option<String> },
+
+    #[serde(rename = "peers-joined")]
+    PeerJoined { peer_id: String },
 }

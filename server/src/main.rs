@@ -8,7 +8,8 @@ mod routes;
 mod error;
 mod signal;
 mod state;
-
+mod role;
+mod peer;
 
 type MainError<T> = Result<T, Error>;
 #[tokio::main]
