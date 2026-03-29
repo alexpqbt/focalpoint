@@ -1,69 +1,70 @@
 import type { SignalMessage } from "./signal";
 
-const videoElem = document.getElementById("video") as HTMLMediaElement
-const startBtn = document.getElementById("start")!
-const stopBtn = document.getElementById("stop")!
+const videoElem = document.getElementById("video") as HTMLMediaElement;
+const startBtn = document.getElementById("start")!;
+const stopBtn = document.getElementById("stop")!;
 
 const displayMediaOptions = {
   video: true,
   audio: false
-}
+};
 
-const server = import.meta.env.VITE_SIGNALING_SERVER
-const testRoom = "room_1"
-const wsConnection = `${server}/ws/${testRoom}`
+const server = import.meta.env.VITE_SIGNALING_SERVER;
+const testRoom = "room_1";
+const wsConnection = `${server}/ws/${testRoom}`;
 
-let mediaStream: MediaStream
+let mediaStream: MediaStream;
+const configuration: RTCConfiguration = { iceServers: [] };
+const peersMap = new Map<string, RTCPeerConnection>();
 
 async function startCapture() {
   try {
-    mediaStream = videoElem.srcObject = await navigator.mediaDevices.getDisplayMedia(displayMediaOptions)
+    mediaStream = await navigator.mediaDevices.getDisplayMedia(displayMediaOptions);
+    videoElem.srcObject = mediaStream;
   } catch (error) {
-    console.error(error)
+    console.error("Screen capture failed:", error);
   }
 }
 
 function stopCapture() {
-  let stream = videoElem.srcObject as MediaStream
-  let tracks = stream.getTracks()
-
-  tracks.forEach((track) => track.stop())
-  videoElem.srcObject = null
+  if (mediaStream) {
+    mediaStream.getTracks().forEach((track) => track.stop());
+    videoElem.srcObject = null;
+  }
 }
 
 async function makeCall() {
-  const socket = new WebSocket(wsConnection)
-  const configuration: RTCConfiguration = { 'iceServers': [] }
-  const peersMap = new Map<string, RTCPeerConnection>
-
+  const socket = new WebSocket(wsConnection);
 
   socket.addEventListener("message", async (event: MessageEvent<string>) => {
-    const message: SignalMessage = JSON.parse(event.data)
-    if (message.type == "answer") {
-      const remoteDescription = {
-        type: message.type,
-        sdp: message.sdp!,
-      }
+    const message: SignalMessage = JSON.parse(event.data);
 
-      const studentConnection = peersMap.get(message.target_id!)
-      if (!studentConnection) return
-      await studentConnection.setRemoteDescription(remoteDescription)
+    if (message.type === "answer") {
+      const studentConnection = peersMap.get(message.target_id!);
+      if (studentConnection) {
+        await studentConnection.setRemoteDescription({
+          type: "answer",
+          sdp: message.sdp,
+        });
+      }
     }
 
-    if (message.type == "peers-joined") {
-      const notif = {
-        type: message.type,
-        peer_id: message.peer_id,
+    if (message.type === "peers-joined") {
+      if (!mediaStream) {
+        console.error("No media stream available to share.");
+        return;
       }
 
-      const studentConnection = new RTCPeerConnection(configuration)
+      const studentConnection = new RTCPeerConnection(configuration);
+      peersMap.set(message.peer_id, studentConnection);
 
-      if (!mediaStream) return
-
-      const tracks = mediaStream.getTracks()
-      tracks.forEach((track) => studentConnection.addTrack(track, mediaStream))
-
-      peersMap.set(notif.peer_id, studentConnection)
+      studentConnection.onconnectionstatechange = () => {
+        if (["disconnected", "failed", "closed"].includes(studentConnection.connectionState)) {
+          console.log(`Student ${message.peer_id} disconnected.`);
+          studentConnection.close();
+          peersMap.delete(message.peer_id);
+        }
+      };
 
       studentConnection.onicecandidate = (event) => {
         if (event.candidate) {
@@ -71,62 +72,38 @@ async function makeCall() {
             type: "ice-candidate",
             candidate: JSON.stringify(event.candidate),
             target_id: message.peer_id,
-          }
-          socket.send(JSON.stringify(iceMsg))
+          };
+          socket.send(JSON.stringify(iceMsg));
         }
-      }
+      };
 
-      const offer = await studentConnection.createOffer()
-      studentConnection.setLocalDescription(offer)
+      mediaStream.getTracks().forEach((track) => studentConnection.addTrack(track, mediaStream));
+
+      const offer = await studentConnection.createOffer();
+      await studentConnection.setLocalDescription(offer);
 
       const sendPacket: SignalMessage = {
         type: "offer",
         sdp: offer.sdp!,
-        target_id: notif.peer_id,
-      }
-      socket.send(JSON.stringify(sendPacket))
+        target_id: message.peer_id,
+      };
+      socket.send(JSON.stringify(sendPacket));
     }
 
-    if (message.type == "ice-candidate") {
-      try {
-        const candidate = new RTCIceCandidate(JSON.parse(message.candidate))
-        const studentConnection = peersMap.get(message.target_id!)
-        if (!studentConnection) return
-
-        await studentConnection.addIceCandidate(candidate)
-      }
-      catch (e) {
-        console.error("ICE candidate error, skibidi dead", e);
+    if (message.type === "ice-candidate") {
+      const studentConnection = peersMap.get(message.target_id!);
+      if (studentConnection && message.candidate) {
+        await studentConnection.addIceCandidate(new RTCIceCandidate(JSON.parse(message.candidate)));
       }
     }
+  });
 
-  })
-
-  socket.addEventListener("open", async () => {
-    console.log("Oh yeh it's open baby")
-    try {
-      const join =
-      {
-        type: "join",
-        role: "teacher",
-      }
-
-      socket.send(JSON.stringify(join))
-    }
-    catch (e: any) {
-      console.error("Oh my days, failed to send join and offer request.", e)
-    }
-  }, { once: true })
-
-
+  socket.addEventListener("open", () => {
+    const join: SignalMessage = { type: "join", role: "teacher" };
+    socket.send(JSON.stringify(join));
+  }, { once: true });
 }
 
-startBtn.addEventListener("click", () => {
-  startCapture()
-})
-
-stopBtn.addEventListener("click", () => {
-  stopCapture()
-})
-
-videoElem.addEventListener("play", () => makeCall())
+startBtn.addEventListener("click", () => startCapture());
+stopBtn.addEventListener("click", () => stopCapture());
+videoElem.addEventListener("play", () => makeCall());
