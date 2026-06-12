@@ -1,0 +1,38 @@
+# Certificates - never commit these
+certs/
+
+# Environment and secrets
+.env
+*.env
+livekit.yaml
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+
+# Docker
+.docker/
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node (if you ever add frontend tooling)
+node_modules/
+
+!livekit.yaml.example
+!.env.example
