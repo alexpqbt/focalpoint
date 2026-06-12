@@ -13,6 +13,10 @@ slides clearly from their seats. A projector throws one image on a wall at a
 fixed size. This system puts the presentation directly in every student's hand, 
 at whatever zoom level they need.
 
+## The Solution
+
+Focalpoint turns any device with a browser into a personal window to the presentation. The presenter shares their screen once. Every student sees it instantly on their own phone, tablet, or laptop — zoomable, fullscreen, and completely independent of what anyone else in the room is doing.
+
 ## How It Works
 
 1. The presenter connects their laptop via HDMI to the system (production) 
