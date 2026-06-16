@@ -117,9 +117,8 @@ Open `livekit.yaml` and fill in:
 
 ### 5. Update the server IP in the frontend
 
-Open `public/present.html` and `public/view.html` and replace 
+Open `public/js/config.js` and replace 
 `192.168.1.100` with your actual local IP address. 
-This appears in the `room.connect()` call in each file.
 
 ### 6. Start everything
 
