@@ -133,7 +133,7 @@ builds the token server. Subsequent runs are fast.
 
 ### Presenter
 
-1. Open `https://192.168.1.100/present.html` in your browser
+1. Open `https://192.168.1.100/` in your browser
 2. Accept the certificate warning (one time only)
 3. Click **Start Sharing**
 4. Select the window or screen you want to share
@@ -159,7 +159,7 @@ docker compose down
 2. Install Docker
 3. Find the new machine's local IP address
 4. Regenerate certificates with mkcert for the new IP
-5. Update the IP in `present.html`, `view.html`, and `livekit.yaml`
+5. Update the IP in `config.js`, and `livekit.yaml`
 6. Run `docker compose up --build`
 
 ## Troubleshooting
@@ -214,7 +214,6 @@ Attribution to the original author is required.
 This project is built entirely on open source software:
 
 - [LiveKit](https://livekit.io) — WebRTC SFU server
-- [ffmpeg](https://ffmpeg.org) — Media processing
 - [Nginx](https://nginx.org) — Web server
 - [FastAPI](https://fastapi.tiangolo.com) — Token server framework
 - [Docker](https://docker.com) — Containerization
