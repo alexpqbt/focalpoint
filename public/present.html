@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Focalpoint Presenter</title>
+  <link rel="stylesheet" href="css/present.css">
+</head>
+<body>
+  <video id="preview" autoplay muted playsinline></video>
+  <div id="qrcode"></div>
+  <p id="ipAddress"></p>
+  <div class="btn-group">
+    <button id="shareBtn" class="button">Start Sharing</button> 
+    <button id="stopBtn" class="button">Stop Sharing</button> 
+  </div>
+  <p id="status"></p>
+
+  <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script type="module" src="js/present.js"></script>
+</body>
+</html>
