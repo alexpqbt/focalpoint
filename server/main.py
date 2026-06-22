@@ -13,6 +13,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.frontend("/", directory="../ui/dist", fallback="index.html")
+
 API_KEY = os.environ.get("API_KEY", "fallback_key")
 API_SECRET = os.environ.get("API_SECRET", "fallback_secret")
 ROOM_NAME = os.environ.get("ROOM_NAME", "classroom")
