@@ -3,17 +3,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from livekit import api
 import os
+from dotenv import load_dotenv
+
+load_dotenv("../.env")
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["GET"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
-
-app.frontend("/", directory="../ui/dist", fallback="index.html")
 
 API_KEY = os.environ.get("API_KEY", "fallback_key")
 API_SECRET = os.environ.get("API_SECRET", "fallback_secret")
