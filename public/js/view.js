@@ -1,7 +1,9 @@
-import { SERVER_IP, WSS_URI } from "./config.js"
+import { initConfig, getLivekitURI } from "./config.js"
 
 const startBtn = document.getElementById('startBtn')
 const screen = document.getElementById('screen')
+
+await initConfig()
 
 startBtn.onclick = async () => {
   try {
@@ -16,7 +18,7 @@ startBtn.onclick = async () => {
       }
     })
 
-    await room.connect(WSS_URI, token)
+    await room.connect(getLivekitURI(), token)
   } catch (err) {
     console.error('Failed to disconnect', err)
   } finally {

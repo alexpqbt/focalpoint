@@ -1,4 +1,4 @@
-import { SERVER_IP, WSS_URI, VIDEO_CFG } from "./config.js"
+import { initConfig, getServerIP, getLivekitURI, VIDEO_CFG } from "./config.js"
 
 const shareBtn = document.getElementById('shareBtn')
 const stopBtn = document.getElementById('stopBtn')
@@ -10,13 +10,15 @@ const ipAddressLabel = document.getElementById('ipAddress')
 
 let room = null
 
+await initConfig()
+
 const startSharing = async () => {
   shareBtn.disabled = true
   try {
     canvas.replaceChildren()
     const token = await fetch('/token?role=presenter&identity=presenter').then(r => r.text())
     room = new LivekitClient.Room()
-    await room.connect(WSS_URI, token)
+    await room.connect(getLivekitURI(), token)
     await room.localParticipant.setScreenShareEnabled(true, VIDEO_CFG)
     room.on(LivekitClient.RoomEvent.LocalTrackUnpublished, stopSharing)
 
@@ -24,7 +26,7 @@ const startSharing = async () => {
     if (!pub?.videoTrack) throw new Error('Screen share track unavailable')
 
     preview.srcObject = new MediaStream([pub.videoTrack.mediaStreamTrack])
-    const viewerURL = `https://${SERVER_IP}/view.html`
+    const viewerURL = `http://${getServerIP()}:8080/view`
     new QRCode(canvas, { text: viewerURL })
     ipAddressLabel.textContent = viewerURL 
   } catch (err) {
