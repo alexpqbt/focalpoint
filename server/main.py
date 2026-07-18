@@ -4,6 +4,7 @@ from fastapi.responses import PlainTextResponse
 from livekit import api
 import os
 from dotenv import load_dotenv
+from networking import get_local_ip
 
 load_dotenv("../.env")
 
@@ -38,3 +39,9 @@ async def get_token(
                 ))
     return token.to_jwt()
 
+@app.get("/config")
+def get_config():
+    return {
+        "livekit_uri": f"ws://{get_local_ip()}:7880",
+        "server_ip": get_local_ip()
+    }
