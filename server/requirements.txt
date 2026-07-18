@@ -1,4 +1,0 @@
-fastapi
-uvicorn
-livekit-api
-cryptography
