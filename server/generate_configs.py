@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from networking import get_local_ip
 from pathlib import Path
 
-load_dotenv()
+load_dotenv("../.env")
 
 BASE = Path(__file__).resolve().parents[1]
 
@@ -19,7 +19,7 @@ def generate_livekit_yaml(local_ip):
             "node_ip": local_ip,
         },
         "keys": {
-            os.getenv("API_KEY"): os.getenv("API_SECRET")
+            os.getenv("LIVEKIT_API_KEY"): os.getenv("LIVEKIT_API_SECRET")
         }
     }
     path = BASE / "livekit" / "livekit.yaml"
@@ -60,6 +60,10 @@ http {{
         }}
 
         location /token {{
+            proxy_pass http://127.0.0.1:5000;
+        }}
+        
+        location /participants {{
             proxy_pass http://127.0.0.1:5000;
         }}
     }}
