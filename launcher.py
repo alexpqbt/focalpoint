@@ -76,18 +76,27 @@ def shutdown():
     print("\nShutting down...")
 
     if "nginx" in processes:
-        subprocess.run([str(BASE / "nginx" / "nginx.exe"), "-s", "stop"], cwd=BASE)
-        processes["nginx"].wait(timeout=10)
+        try:
+            subprocess.run(
+                [str(BASE / "nginx" / "nginx.exe"), "-p", str(BASE / "nginx"), "-s", "stop"],
+                cwd=BASE,
+                timeout=10,
+            )
+            processes["nginx"].wait(timeout=10)
+        except Exception as e:
+            print(f"nginx stop failed: {e}")
 
     for name in ("fastapi", "livekit"):
         proc = processes.get(name)
         if proc and proc.poll() is None:
-            proc.terminate()
             try:
+                proc.terminate()
                 proc.wait(timeout=10)
             except subprocess.TimeoutExpired:
                 print(f"{name} did not exit cleanly, killing.")
                 proc.kill()
+            except Exception as e:
+                print(f"{name} shutdown failed: {e}")
 
     print("Shutdown complete.")
 
