@@ -8,6 +8,7 @@ await initConfig()
 
 async function joinSession(name) {
   try {
+    screen.classList.toggle('hidden')
     const identity = 'student-' + Math.random().toString(36).substring(2,9)
     const token = await fetch(`/token?role=student&identity=${identity}&name=${encodeURIComponent(name)}`).then(r => r.text())
 
@@ -41,5 +42,5 @@ const isWhitespace = str => str.trim().length === 0;
 submitDisplayName.onclick = () => {
   const name = document.getElementById('name')
   if (!name.value || isWhitespace(name.value)) return
-  joinSession(name)
+  joinSession(name.value)
 }
