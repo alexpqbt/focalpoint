@@ -1,4 +1,5 @@
 import { initConfig, getServerIP, getLivekitURI, VIDEO_CFG } from "./config.js"
+import './util/polyfill.js'
 
 const shareBtn = document.getElementById('shareBtn')
 const stopBtn = document.getElementById('stopBtn')
@@ -24,6 +25,7 @@ const startSharing = async () => {
     await room.connect(getLivekitURI(), presenterToken)
     await room.localParticipant.setScreenShareEnabled(true, VIDEO_CFG)
     room.on(LivekitClient.RoomEvent.LocalTrackUnpublished, stopSharing)
+    receiveMessages()
 
     const pub = room.localParticipant.getTrackPublication('screen_share')
     if (!pub?.videoTrack) throw new Error('Screen share track unavailable')
@@ -114,6 +116,28 @@ function stopParticipantPolling() {
 function showParticipantPanel() {
   const listEl = document.getElementById('participants-panel');
   listEl.classList.toggle('hidden')
+}
+
+function receiveMessages() {
+  room.registerTextStreamHandler('student-message', async (reader, participantInfo) => {
+    const text = await reader.readAll();
+    const participant = room.remoteParticipants.get(participantInfo.identity)
+    const senderName = participant?.name || participantInfo.identity
+    showMessageToast(text, senderName)
+  })
+}
+
+function showMessageToast(text, senderName) {
+  const toast = document.createElement('div')
+  toast.className = 'message-toast'
+
+  const nameEl = document.createElement('strong')
+  nameEl.textContent = senderName
+  toast.appendChild(nameEl)
+  toast.appendChild(document.createTextNode(`: ${text}`))
+
+  document.getElementById('toast-container').appendChild(toast)
+  setTimeout(() => toast.remove(), 5000)
 }
 
 shareBtn.onclick = startSharing
