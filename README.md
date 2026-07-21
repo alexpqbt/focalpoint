@@ -1,63 +1,112 @@
 # Focalpoint
 
-A self-contained, browser-based classroom screen broadcasting system designed 
-for students with visual difficulties. The presenter shares their screen once, 
-and up to 50 students can view it in real-time on their own devices — with 
-full pinch-to-zoom support — through a private local WiFi network, 
-with no internet connection required.
+A self-contained, browser-based classroom screen broadcasting system designed
+for students with visual difficulties. The host shares their screen once,
+and multiple students can view it in real-time on their own devices
+through a private local WiFi network, with no internet connection required.
 
 ## The Problem
 
-Students with visual difficulties in a classroom cannot always read presentation 
-slides clearly from their seats. A projector throws one image on a wall at a 
-fixed size. This system puts the presentation directly in every student's hand, 
+Students with visual difficulties in a classroom cannot always read presentation
+slides clearly from their seats. A projector throws one image on a wall at a
+fixed size. This system puts the presentation directly in every student's hand,
 at whatever zoom level they need.
 
 ## The Solution
 
-Focalpoint turns any device with a browser into a personal window to the presentation. The presenter shares their screen once. Every student sees it instantly on their own phone, tablet, or laptop — zoomable, fullscreen, and completely independent of what anyone else in the room is doing.
+Focalpoint turns any device with a browser into a personal window to the
+presentation. The host shares their screen once. Every student sees it
+instantly on their own phone, tablet, or laptop — zoomable, fullscreen, and
+independent of what anyone else in the room is doing. Students can also send
+short text messages back to the host, and the presenter can see who's
+connected and disconnect a viewer if needed.
 
 ## How It Works
 
-1. The presenter connects their laptop via HDMI to the system (production) 
-   or runs the system on their own laptop (prototype)
-2. The presenter opens the presenter page in their browser and clicks 
-   **Start Sharing**
-3. A QR code appears on screen
-4. Students connect to the classroom WiFi and scan the QR code
-5. Students tap **Start Viewing** and see the presentation live on their phone
-6. Students can pinch-to-zoom freely and independently
+1. The host runs `launcher.py`. It starts every service and opens the
+   host page automatically.
+2. The host clicks **Start Sharing** and selects a window or screen.
+3. A QR code appears on screen.
+4. Students connect to the classroom WiFi and scan the QR code.
+5. Students enter their name and tap **Start Viewing** to see the presentation live.
+6. Students can pinch-to-zoom freely and independently, and send a text
+   message to the host at any time.
+7. The host can see a live participant count and list, and disconnect
+   a viewer if needed.
 
-No app installation required. Any modern mobile browser works.
+No app installation required. No internet connection required. Any modern
+mobile browser works.
 
 ## Architecture
 
 ```
-Presenter's Laptop
-    ↓ (screen capture via browser getDisplayMedia API)
-LiveKit SFU — receives one upstream stream
-    ↓ (distributes to all connected viewers)
-50 Student Devices — any browser, pinch-to-zoom enabled
+Host's Laptop (localhost)
+    ↓ screen capture via browser getDisplayMedia API
+LiveKit SFU — receives one upstream stream, distributes to all viewers
+    ↓
+Student Devices (LAN IP) — any browser, pinch-to-zoom enabled
+    ↓ text stream, viewer → host
+Host sees message as an on-screen notification
 ```
 
-All traffic stays on a local network. No internet required. 
-No STUN/TURN servers needed.
+FastAPI issues LiveKit access tokens and serves as the sole authenticated
+path into the room for admin actions (participant list, disconnect). Nginx
+serves static files and reverse-proxies API calls. All traffic stays on the
+local network — no internet, no STUN/TURN servers.
 
 ## Tech Stack
 
 | Component | Technology |
 |---|---|
-| SFU Server | LiveKit (open source) |
+| SFU Server | LiveKit (open source, self-hosted binary) |
 | Web Server | Nginx |
-| Token Server | FastAPI + Uvicorn |
-| Screen Capture | Browser getDisplayMedia API |
-| Viewer Client | HTML + JavaScript + LiveKit JS SDK |
-| Containerization | Docker + Docker Compose |
+| Token / Admin API | FastAPI + Uvicorn |
+| Python dependency management | uv |
+| Screen Capture | Browser `getDisplayMedia` API |
+| Viewer/Host Client | HTML + JavaScript + LiveKit JS SDK (CDN, no bundler) |
+| Process orchestration | `launcher.py` |
 
 ## Prerequisites
 
-- [Docker](https://docs.docker.com/get-docker/) and Docker Compose
-- [mkcert](https://github.com/FiloSottile/mkcert) for local HTTPS certificates
+- [uv](https://docs.astral.sh/uv/) for the Python token/admin server
+- LiveKit server binary (`livekit-server.exe`) and Nginx (`nginx.exe`) for Windows,
+  placed in `livekit/` and `nginx/` per the folder structure below
+
+## Folder Structure
+
+```
+focalpoint/
+│   .env
+│   .env.example
+│   launcher.py
+│
+├───livekit/
+│       livekit-server.exe
+│       livekit.yaml           ← generated at launch
+│
+├───nginx/
+│   │   nginx.exe
+│   ├───conf/
+│   │       nginx.conf         ← generated at launch
+│   └───logs/
+│
+├───public/
+│   │   present.html
+│   │   view.html
+│   ├───css/
+│   └───js/
+│           polyfills.js
+│           config.js
+│           present.js
+│           view.js
+│
+└───server/
+        main.py
+        networking.py
+        generate_configs.py
+        pyproject.toml
+        uv.lock
+```
 
 ## Setup
 
@@ -68,145 +117,120 @@ git clone https://github.com/alexpqbt/focalpoint.git
 cd focalpoint
 ```
 
-### 2. Install mkcert and generate certificates
-
-```bash
-# Install mkcert (Linux)
-sudo apt install mkcert
-mkcert -install
-
-# Generate certificate for your local IP
-# Replace 192.168.1.100 with your actual local IP address
-mkcert 192.168.1.100 localhost 127.0.0.1
-
-# Move certificates into the certs folder
-mv 192.168.1.100+2.pem certs/cert.pem
-mv 192.168.1.100+2-key.pem certs/key.pem
-```
-
-Find your local IP address:
-- Linux/Mac: `ip a` or `ifconfig`
-- Windows: `ipconfig`
-
-### 3. Configure environment variables
+### 2. Configure environment variables
 
 ```bash
 cp .env.example .env
 ```
 
-Open `.env` and fill in your values:
+Open `.env` and fill in:
 
 ```env
-API_KEY=your_api_key_here
-API_SECRET=your_api_secret_here
-ROOM_NAME=classroom
+LIVEKIT_API_KEY=your_api_key_here
+LIVEKIT_API_SECRET=your_api_secret_here
+LIVEKIT_ROOM_NAME=classroom
 ```
 
-Use any string you want for the key and secret. 
-They just need to match between the token server and LiveKit.
+Use any string for the key and secret — they only need to match between the
+token server and LiveKit, and the launcher keeps them in sync automatically.
 
-### 4. Configure LiveKit
+### 3. Install Python dependencies
 
 ```bash
-cp livekit.yaml.example livekit.yaml
+cd server
+uv sync
+cd ..
 ```
 
-Open `livekit.yaml` and fill in:
-- Your local IP address under `node_ip`
-- Your API key and secret under `keys` — must match what you set in `.env`
-
-### 5. Update the server IP in the frontend
-
-Open `public/js/config.js` and replace 
-`192.168.1.100` with your actual local IP address. 
-
-### 6. Start everything
+### 4. Run the launcher
 
 ```bash
-docker compose up --build
+uv run python launcher.py
 ```
 
-First run takes a few minutes while Docker downloads images and 
-builds the token server. Subsequent runs are fast.
+This detects the machine's local IP, generates `livekit.yaml` and
+`nginx.conf`, starts LiveKit, FastAPI, and Nginx in order — waiting for each
+to become reachable before starting the next — and opens the host page
+automatically.
+
+No manual IP editing in any file. No certificate generation. No per-machine
+config files to keep in sync.
 
 ## Usage
 
-### Presenter
+### Host
 
-1. Open `https://192.168.1.100/` in your browser
-2. Accept the certificate warning (one time only)
-3. Click **Start Sharing**
-4. Select the window or screen you want to share
-5. A QR code appears — display it to students
+1. `launcher.py` opens the host page automatically at `http://localhost:8080/`.
+2. Click **Start Sharing** and select the window or screen to share.
+3. A QR code appears — display it to students.
+4. The participant panel shows a live count and list of connected viewers,
+   each with a **Disconnect** button.
+5. Messages sent by students appear as brief on-screen notifications.
 
 ### Students
 
-1. Connect to the classroom WiFi network
-2. Scan the QR code with your phone camera
-3. Accept the certificate warning (one time only)
-4. Tap **Start Viewing**
-5. Pinch to zoom freely
+1. Connect to the classroom WiFi network.
+2. Scan the QR code with a phone camera — this opens `http://<HOST-IP>:8080/view`.
+3. Enter a name and tap **Start Viewing**.
+4. Pinch to zoom freely.
+5. Tap **Send Message** to type a short note to the host.
 
 ## Stopping the System
 
-```bash
-docker compose down
-```
+Press `Ctrl+C` in the terminal running `launcher.py`. It stops Nginx via its
+documented shutdown command and terminates LiveKit and FastAPI.
 
 ## Moving to a New Machine
 
-1. Copy the project folder to the new machine
-2. Install Docker
-3. Find the new machine's local IP address
-4. Regenerate certificates with mkcert for the new IP
-5. Update the IP in `config.js`, and `livekit.yaml`
-6. Run `docker compose up --build`
+1. Copy the project folder to the new machine.
+2. Install `uv`, run `uv sync` inside `server/`.
+3. Run `uv run python launcher.py`.
+
+The local IP is detected automatically at launch — no config files need editing.
 
 ## Troubleshooting
 
-**Students cannot reach the presenter page**
-Check that the router does not have client isolation enabled. 
-This setting prevents devices on the same network from talking to each other. 
-Turn it off.
+**Students cannot reach the host page**
+Check that the router does not have client isolation enabled. This setting
+prevents devices on the same network from talking to each other. Turn it off.
 
-**iOS Safari shows a connection error**
-Accept the certificate warning when you first visit the page. 
-Safari requires this one-time step for self-signed certificates on local networks.
+**Token server / `/participants` returns 401 or 403**
+The bearer token sent to the endpoint is missing, invalid, or lacks the
+`roomAdmin` grant — this happens automatically for host tokens, so a 403
+here usually means a non-host token was used against an admin endpoint.
 
-**Token server returns 401 Unauthorized**
-Your API key and secret in `.env` do not match the keys in `livekit.yaml`. 
-They must be identical.
-
-**Docker takes forever to start**
-This usually happens if the UDP port range is being mapped. 
-Check your `docker-compose.yml` and remove any `50000-60000` port mappings.
+**Video or messaging is not working**
+Make sure `launcher.py` reports all three services as ready before opening
+the browser. Check the browser console (not just server logs) — errors in
+`present.js`/`view.js` are not currently surfaced to the terminal.
 
 **Video is not appearing on student devices**
-Make sure the presenter has selected a window and the stream is active. 
-Students must tap the Start Viewing button after the presenter has started sharing.
+Confirm the host has selected a window and the stream is active.
+Students must tap **Start Viewing** after the host has started sharing.
 
-## Scope and Limitations
+## Known Limitations
 
-This prototype is validated with up to 20 simultaneous connected devices. 
-The architecture is designed and capacity-verified for 50 concurrent viewers 
-based on WebRTC SFU distribution and local 802.11ac network capacity analysis.
-
-The prototype captures the presenter's screen via the browser 
-`getDisplayMedia` API. The proposed production version uses an HDMI-to-USB 
-capture card connected to a Raspberry Pi 5, allowing the presenter to use 
-their own laptop independently.
-
-HTTPS is required for WebRTC to function on iOS Safari. This prototype uses 
-a self-signed certificate generated with mkcert. Production deployment would 
-use a properly signed certificate or a persistent self-signed certificate 
-installed on managed devices.
+- **No message persistence.** Messages from students are shown once as a
+  notification and are not stored or logged anywhere.
+- **No ban list.** Disconnecting a viewer clears their current connection
+  only. A page refresh reconnects them immediately — there is no server-side
+  tracking of removed identities. This is intentional, not a bug.
+- **No SSL, by design.** All traffic is unencrypted on the local network.
+  Acceptable for a classroom LAN with no internet exposure; not suitable for
+  any deployment where the network isn't fully trusted.
+- **Confirmed incompatible: iOS 12 and earlier (e.g. iPhone 6/6 Plus).**
+  Plain HTTP and the LiveKit token endpoint work fine, but the WebSocket
+  handshake to LiveKit's signaling server fails at the browser networking
+  layer (WebSocket close code 1005, no server-side rejection). Likely a
+  WebKit-level limitation on this OS version, not fixable in application
+  code. 
 
 ## License
 
-This project is licensed under the GNU General Public License v3.0. 
+This project is licensed under the GNU General Public License v3.0.
 See [LICENSE](LICENSE) for details.
 
-Any modifications to this project must also be released under GPL v3.0. 
+Any modifications to this project must also be released under GPL v3.0.
 Attribution to the original author is required.
 
 ## Acknowledgements
@@ -215,11 +239,11 @@ This project is built entirely on open source software:
 
 - [LiveKit](https://livekit.io) — WebRTC SFU server
 - [Nginx](https://nginx.org) — Web server
-- [FastAPI](https://fastapi.tiangolo.com) — Token server framework
-- [Docker](https://docker.com) — Containerization
+- [FastAPI](https://fastapi.tiangolo.com) — Token and admin server framework
+- [uv](https://docs.astral.sh/uv/) — Python package and project management
 
 ## Author
 
-Built as a capstone research project exploring low-cost, 
-open source assistive technology for visually impaired students 
-in Philippine university classrooms.
+Built as a capstone research project exploring low-cost, open source
+assistive technology for visually impaired students in Philippine university
+classrooms.

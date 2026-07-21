@@ -1,6 +1,7 @@
-export const SERVER_IP = '192.168.1.14'
-export const WSS_URI = `wss://${SERVER_IP}`
-export const VIDEO_CFG = { 
+let SERVER_IP = null
+let LIVEKIT_URI = null
+
+export const VIDEO_CFG = {
   audio: false,
   contentHint: "text",
   resolution: {
@@ -9,3 +10,13 @@ export const VIDEO_CFG = {
     width: 720,
   }
 }
+
+export async function initConfig() {
+  const res = await fetch('/config')
+  const data = await res.json()
+  SERVER_IP = data.server_ip
+  LIVEKIT_URI = data.livekit_uri
+}
+
+export const getServerIP = () => SERVER_IP
+export const getLivekitURI = () => LIVEKIT_URI

@@ -1,0 +1,88 @@
+from fastapi import FastAPI, Query, Depends, Header, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
+from livekit import api
+import os
+from dotenv import load_dotenv
+from networking import get_local_ip
+
+load_dotenv("../.env")
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+API_KEY = os.environ.get("LIVEKIT_API_KEY", "fallback_key")
+API_SECRET = os.environ.get("LIVEKIT_API_SECRET", "fallback_secret")
+ROOM_NAME = os.environ.get("LIVEKIT_ROOM_NAME", "classroom")
+os.environ["LIVEKIT_URL"] = f"ws://{get_local_ip()}:7880"
+
+@app.get("/token", response_class=PlainTextResponse)
+async def get_token(
+    role: str = Query(default="student"),
+    identity: str = Query(default="student-guest"),
+    name: str | None = None,
+):
+    can_publish = role == "presenter"
+    is_admin = role == "presenter"
+    name = name if name else identity
+
+    token = api.AccessToken(API_KEY, API_SECRET) \
+                .with_identity(identity) \
+                .with_name(name) \
+                .with_grants(api.VideoGrants(
+                    room_join=True,
+                    room=ROOM_NAME,
+                    can_publish=can_publish,
+                    can_subscribe=True,
+                    room_admin=is_admin,
+                ))
+    return token.to_jwt()
+
+@app.get("/config")
+def get_config():
+    return {
+        "livekit_uri": f"ws://{get_local_ip()}:7880",
+        "server_ip": get_local_ip()
+    }
+
+async def verify_admin(authorization: str = Header(...)) -> None:
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing bearer token")
+    token = authorization.removeprefix("Bearer ")
+    verifier = api.TokenVerifier(API_KEY, API_SECRET)
+    try:
+        claims = verifier.verify(token)
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    if not claims.video.room_admin:
+        raise HTTPException(status_code=403, detail="roomAdmin grant required")
+
+@app.get("/participants")
+async def list_participants(_: None = Depends(verify_admin)):
+    async with api.LiveKitAPI() as lkapi:
+        res = await lkapi.room.list_participants(
+            api.ListParticipantsRequest(room=ROOM_NAME)
+        )
+    participants = [
+        {"identity": p.identity, "name": p.name, "joined_at": p.joined_at}
+        for p in res.participants
+        if p.identity != 'presenter' or p.name != 'presenter'
+    ]
+    return {"count": len(participants), "participants": participants}
+
+@app.post("/participants/{identity}/remove")
+async def remove_participant(identity: str, _: None = Depends(verify_admin)):
+    async with api.LiveKitAPI() as lkapi:
+        try:
+            await lkapi.room.remove_participant(
+                api.RoomParticipantIdentity(room=ROOM_NAME, identity=identity)
+            )
+        except Exception as e:
+            raise HTTPException(status_code=404, detail=str(e))
+    return {"status": "removed", "identity": identity}
