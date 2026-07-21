@@ -8,6 +8,12 @@
 </head>
 <body>
   <button id="startBtn">Tap to Start Viewing</button>
+  <div id="enterDisplayName" class="hidden">
+    <h1>Join Session</h1>
+    <p>Enter your name to access the live broadcast</p>
+    <input id="name" type="text" placeholder="Your Name">
+    <button id="submitDisplayName" type="submit">Submit</button>
+  </div>
   <video id="screen" autoplay playsinline></video>
 
   <script src="modules/livekit-client.umd.min.js"></script>

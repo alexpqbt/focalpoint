@@ -2,13 +2,14 @@ import { initConfig, getLivekitURI } from "./config.js"
 
 const startBtn = document.getElementById('startBtn')
 const screen = document.getElementById('screen')
+const submitDisplayName = document.getElementById('submitDisplayName')
 
 await initConfig()
 
-startBtn.onclick = async () => {
+async function joinSession(name) {
   try {
     const identity = 'student-' + Math.random().toString(36).substring(2,9)
-    const token = await fetch(`/token?role=student&identity=${identity}`).then(r => r.text())
+    const token = await fetch(`/token?role=student&identity=${identity}&name=${encodeURIComponent(name)}`).then(r => r.text())
 
     const room = new LivekitClient.Room()
 
@@ -24,4 +25,21 @@ startBtn.onclick = async () => {
   } finally {
     startBtn.disabled = true
   }
+}
+
+function showNamePanel() {
+  const panel = document.getElementById('enterDisplayName')
+  panel.classList.toggle('hidden')
+}
+
+startBtn.onclick = () => {
+  showNamePanel()
+}
+
+const isWhitespace = str => str.trim().length === 0;
+
+submitDisplayName.onclick = () => {
+  const name = document.getElementById('name')
+  if (!name.value || isWhitespace(name.value)) return
+  joinSession(name)
 }

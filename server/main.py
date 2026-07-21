@@ -26,13 +26,15 @@ os.environ["LIVEKIT_URL"] = f"ws://{get_local_ip()}:7880"
 async def get_token(
     role: str = Query(default="student"),
     identity: str = Query(default="student-guest"),
+    name: str | None = None,
 ):
     can_publish = role == "presenter"
     is_admin = role == "presenter"
+    name = name if name else identity
 
     token = api.AccessToken(API_KEY, API_SECRET) \
                 .with_identity(identity) \
-                .with_name(identity) \
+                .with_name(name) \
                 .with_grants(api.VideoGrants(
                     room_join=True,
                     room=ROOM_NAME,
@@ -70,6 +72,7 @@ async def list_participants(_: None = Depends(verify_admin)):
     participants = [
         {"identity": p.identity, "name": p.name, "joined_at": p.joined_at}
         for p in res.participants
+        if p.identity != 'presenter' or p.name != 'presenter'
     ]
     return {"count": len(participants), "participants": participants}
 
