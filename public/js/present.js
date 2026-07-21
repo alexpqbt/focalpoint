@@ -7,6 +7,7 @@ const preview = document.getElementById('preview')
 const canvas = document.getElementById('qrcode')
 const statusLabel = document.getElementById('status')
 const ipAddressLabel = document.getElementById('ipAddress')
+const panelButton = document.getElementById('panelButton')
 
 let room = null
 let presenterToken = null
@@ -110,5 +111,11 @@ function stopParticipantPolling() {
   presenterToken = null
 }
 
+function showParticipantPanel() {
+  const listEl = document.getElementById('participants-panel');
+  listEl.classList.toggle('hidden')
+}
+
 shareBtn.onclick = startSharing
 stopBtn.onclick = stopSharing
+panelButton.onclick = showParticipantPanel
