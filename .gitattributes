@@ -1,2 +1,3 @@
 livekit/* linguist-detectable=false
 nginx/* linguist-detectable=false
+*.min.js linguist-detectable=false
