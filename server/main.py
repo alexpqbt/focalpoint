@@ -53,7 +53,7 @@ async def get_token(
 @app.get("/config")
 def get_config():
     return {
-        "livekit_uri": f"ws://{get_local_ip()}:7880",
+        "livekit_uri": os.environ.get("LIVEKIT_URL"),
         "server_ip": get_local_ip()
     }
 
