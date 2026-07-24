@@ -59,7 +59,7 @@ const stopSharing = async () => {
   }
 }
 
-async function fetchParticipants() {
+ const fetchParticipants = async () => {
   const res = await fetch('/participants', {
     headers: { Authorization: `Bearer ${presenterToken}` },
   });
@@ -71,7 +71,7 @@ async function fetchParticipants() {
   renderParticipants(participants, count);
 }
 
-function renderParticipants(participants, count) {
+const renderParticipants = (participants, count) => {
   document.getElementById('participant-count').textContent = count;
   const listEl = document.getElementById('participant-list');
   listEl.innerHTML = '';
@@ -86,7 +86,7 @@ function renderParticipants(participants, count) {
   }
 }
 
-async function disconnectParticipant(identity) {
+ const disconnectParticipant = async (identity) => {
   const res = await fetch(`/participants/${encodeURIComponent(identity)}/remove`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${presenterToken}` },
@@ -98,12 +98,12 @@ async function disconnectParticipant(identity) {
   fetchParticipants();
 }
 
-function startParticipantPolling() {
+const startParticipantPolling = () => {
   fetchParticipants();
   participantPollHandle = setInterval(fetchParticipants, 3500);
 }
 
-function stopParticipantPolling() {
+const stopParticipantPolling = () => {
   if (participantPollHandle) {
     clearInterval(participantPollHandle)
     participantPollHandle = null
@@ -113,13 +113,13 @@ function stopParticipantPolling() {
   presenterToken = null
 }
 
-function showParticipantPanel() {
+const showParticipantPanel = () => {
   const listEl = document.getElementById('participants-panel');
   listEl.classList.toggle('hidden')
 }
 
-function receiveMessages() {
-  room.registerTextStreamHandler('student-message', async (reader, participantInfo) => {
+const receiveMessages = () => {
+  room.registerTextStreamHandler('student-message',  async (reader, participantInfo) => {
     const text = await reader.readAll();
     const participant = room.remoteParticipants.get(participantInfo.identity)
     const senderName = participant?.name || participantInfo.identity
@@ -127,7 +127,7 @@ function receiveMessages() {
   })
 }
 
-function showMessageToast(text, senderName) {
+const showMessageToast = (text, senderName) => {
   const toast = document.createElement('div')
   toast.className = 'message-toast'
 
