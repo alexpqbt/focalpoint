@@ -44,6 +44,12 @@ http {{
     server {{
         listen       8080;
 
+        location / {{
+            root   {public};
+            index  present.html;
+            try_files $uri $uri/ =404;
+        }}
+
         location = / {{
             allow 127.0.0.1;
             deny all;
