@@ -44,7 +44,9 @@ http {{
     server {{
         listen       8080;
 
-        location / {{
+        location = / {{
+            allow 127.0.0.1;
+            deny all;
             root   {public};
             index  present.html;
             try_files $uri $uri/ =404;
@@ -55,12 +57,19 @@ http {{
             add_header Content-Type text/html;
         }}
 
+        location = /present.html {{
+            allow 127.0.0.1;
+            deny all;
+            root {public};
+        }}
+
         location /config {{
             proxy_pass http://127.0.0.1:5000;
         }}
 
         location /token {{
             proxy_pass http://127.0.0.1:5000;
+            proxy_set_header X-Real-IP $remote_addr;
         }}
         
         location /participants {{

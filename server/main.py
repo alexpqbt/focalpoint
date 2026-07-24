@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query, Depends, Header, HTTPException
+from fastapi import FastAPI, Query, Depends, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from livekit import api
@@ -24,10 +24,16 @@ os.environ["LIVEKIT_URL"] = f"ws://{get_local_ip()}:7880"
 
 @app.get("/token", response_class=PlainTextResponse)
 async def get_token(
+    request: Request,
     role: str = Query(default="student"),
     identity: str = Query(default="student-guest"),
     name: str | None = None,
 ):
+    if role == "presenter":
+        client_ip = request.headers.get("x-real-ip", request.client.host)
+        if client_ip not in ("127.0.0.1", "::1"):
+            raise HTTPException(status_code=403, detail="Presenter access is restricted to this machine")
+
     can_publish = role == "presenter"
     is_admin = role == "presenter"
     name = name if name else identity
