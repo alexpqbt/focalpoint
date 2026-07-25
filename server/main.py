@@ -1,10 +1,11 @@
 from fastapi import FastAPI, Query, Depends, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, StreamingResponse
 from livekit import api
 import os
 from dotenv import load_dotenv
 from networking import get_local_ip
+import log_session
 
 load_dotenv("../.env")
 
@@ -80,6 +81,7 @@ async def list_participants(_: None = Depends(verify_admin)):
         for p in res.participants
         if p.identity != 'presenter' or p.name != 'presenter'
     ]
+    log_session.record_events(participants)
     return {"count": len(participants), "participants": participants}
 
 @app.post("/participants/{identity}/remove")
@@ -92,3 +94,26 @@ async def remove_participant(identity: str, _: None = Depends(verify_admin)):
         except Exception as e:
             raise HTTPException(status_code=404, detail=str(e))
     return {"status": "removed", "identity": identity}
+
+@app.get("/logs/export")
+async def export_logs(format: str = Query(default="csv"), _: None = Depends(verify_admin)):
+    if format == "csv":
+        return StreamingResponse(
+            iter([log_session.to_csv_bytes()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=log_session.csv"},
+        )
+
+    if format == "pdf":
+        return StreamingResponse(
+            iter([log_session.to_pdf_bytes()]),
+            media_type="application/pdf",
+            headers={"Content-Disposition": "attachment; filename=log_session.pdf"},
+        )
+
+    raise HTTPException(status_code=400, detail="format must be csv or pdf")
+
+@app.post("/logs/reset")
+async def reset_logs(_: None = Depends(verify_admin)):
+    log_session.reset()
+    return {"status": "reset"}

@@ -9,6 +9,8 @@ const canvas = document.getElementById('qrcode')
 const statusLabel = document.getElementById('status')
 const ipAddressLabel = document.getElementById('ipAddress')
 const panelButton = document.getElementById('panelButton')
+const exportCsvBtn = document.getElementById('exportCsvBtn')
+const exportPdfBtn = document.getElementById('exportPdfBtn')
 
 let room = null
 let presenterToken = null
@@ -18,9 +20,17 @@ await initConfig()
 
 const startSharing = async () => {
   shareBtn.disabled = true
+  exportCsvBtn.classList.add('hidden')
+  exportPdfBtn.classList.add('hidden')
   try {
     canvas.replaceChildren()
     presenterToken = await fetch('/token?role=presenter&identity=presenter').then(r => r.text())
+
+    await fetch('/logs/reset', {
+      method: 'POST',
+      headers: { Authorization: `Bearer: ${presenterToken}` }
+    })
+
     room = new LivekitClient.Room()
     await room.connect(getLivekitURI(), presenterToken)
     await room.localParticipant.setScreenShareEnabled(true, VIDEO_CFG)
@@ -56,6 +66,8 @@ const stopSharing = async () => {
   } finally {
     shareBtn.disabled = false
     stopParticipantPolling()
+    exportCsvBtn.classList.remove('hidden')
+    exportPdfBtn.classList.remove('hidden')
   }
 }
 
@@ -110,7 +122,6 @@ const stopParticipantPolling = () => {
   }
   document.getElementById('participant-count').textContent = '0'
   document.getElementById('participant-list').innerHTML = ''
-  presenterToken = null
 }
 
 const showParticipantPanel = () => {
@@ -140,6 +151,25 @@ const showMessageToast = (text, senderName) => {
   setTimeout(() => toast.remove(), 5000)
 }
 
+const exportLog = async (format) => {
+  const res = await fetch(`/logs/export?format=${format}`, {
+    headers: { Authorization: `Bearer ${presenterToken}` },
+  })
+  if (!res.ok) {
+    console.error('export failed', res.status)
+    return
+  }
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `session_log.${format}`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 shareBtn.onclick = startSharing
 stopBtn.onclick = stopSharing
 panelButton.onclick = showParticipantPanel
+exportCsvBtn.onclick = () => exportLog('csv')
+exportPdfBtn.onclick = () => exportLog('pdf')

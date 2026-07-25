@@ -81,6 +81,10 @@ http {{
         location /participants {{
             proxy_pass http://127.0.0.1:5000;
         }}
+
+        location /logs {{
+            proxy_pass http://127.0.0.1:5000;
+        }}
     }}
 }}
 """
