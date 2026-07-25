@@ -14,9 +14,9 @@ await initConfig()
 
 const joinSession = async (name) => {
   try {
-    screen.classList.toggle('hidden')
-    showMessagePanelBtn.classList.toggle('hidden')
-    disconnectBtn.classList.toggle('hidden')
+    screen.classList.remove('hidden')
+    showMessagePanelBtn.classList.remove('hidden')
+    disconnectBtn.classList.remove('hidden')
     const identity = 'student-' + Math.random().toString(36).substring(2,9)
     const token = await fetch(`/token?role=student&identity=${identity}&name=${encodeURIComponent(name)}`).then(r => r.text())
 
@@ -28,9 +28,14 @@ const joinSession = async (name) => {
       }
     })
 
+    room.on(LivekitClient.RoomEvent.Disconnected, (reason) => {
+      console.log('Disconnected from room, reason:', reason)
+      resetToJoinScreen()
+    })
+
     await room.connect(getLivekitURI(), token)
   } catch (err) {
-    console.error('Failed to disconnect', err)
+    console.error('Failed to join session', err)
   } finally {
     startBtn.disabled = true
   }
@@ -38,7 +43,7 @@ const joinSession = async (name) => {
 
 const showNamePanel = () => {
   const panel = document.getElementById('enterDisplayName')
-  panel.classList.toggle('hidden')
+  panel.classList.remove('hidden')
 }
 
 const showMessagePanel = () => {
@@ -62,19 +67,25 @@ const sendMessage = async () => {
   })
   console.log(`Sent text with stream ID: ${info.id}`);
   message.value = ''
-} 
-
-const disconnectSession = async () => {
-  room.disconnect()
-  screen.classList.toggle('hidden')
-  showMessagePanelBtn.classList.toggle('hidden')
-  disconnectBtn.classList.toggle('hidden')
-  showNamePanel()
-  startBtn.disabled = false
 }
 
-submitDisplayNameBtn.onclick = setViewerName 
+const resetToJoinScreen = () => {
+  screen.classList.add('hidden')
+  showMessagePanelBtn.classList.add('hidden')
+  disconnectBtn.classList.add('hidden')
+  document.getElementById('messagePanel').classList.add('hidden')
+  showNamePanel()
+  startBtn.disabled = false
+  room = null
+}
+
+const disconnectSession = async () => {
+  await room.disconnect()
+  resetToJoinScreen()
+}
+
+submitDisplayNameBtn.onclick = setViewerName
 startBtn.onclick = showNamePanel
 showMessagePanelBtn.onclick = showMessagePanel
-submitMessageBtn.onclick = sendMessage 
+submitMessageBtn.onclick = sendMessage
 disconnectBtn.onclick = disconnectSession
