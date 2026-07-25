@@ -6,6 +6,7 @@ const screen = document.getElementById('screen')
 const submitDisplayNameBtn = document.getElementById('submitDisplayName')
 const showMessagePanelBtn = document.getElementById('showMessagePanel')
 const submitMessageBtn = document.getElementById('submitMessage')
+const disconnectBtn = document.getElementById('disconnect')
 
 let room = null
 
@@ -15,6 +16,7 @@ const joinSession = async (name) => {
   try {
     screen.classList.toggle('hidden')
     showMessagePanelBtn.classList.toggle('hidden')
+    disconnectBtn.classList.toggle('hidden')
     const identity = 'student-' + Math.random().toString(36).substring(2,9)
     const token = await fetch(`/token?role=student&identity=${identity}&name=${encodeURIComponent(name)}`).then(r => r.text())
 
@@ -62,7 +64,17 @@ const sendMessage = async () => {
   message.value = ''
 } 
 
+const disconnectSession = async () => {
+  room.disconnect()
+  screen.classList.toggle('hidden')
+  showMessagePanelBtn.classList.toggle('hidden')
+  disconnectBtn.classList.toggle('hidden')
+  showNamePanel()
+  startBtn.disabled = false
+}
+
 submitDisplayNameBtn.onclick = setViewerName 
 startBtn.onclick = showNamePanel
 showMessagePanelBtn.onclick = showMessagePanel
 submitMessageBtn.onclick = sendMessage 
+disconnectBtn.onclick = disconnectSession
