@@ -1,12 +1,37 @@
-import React from 'react';
-import { X, Copy } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Copy, Check } from 'lucide-react';
 
-export default function QrModal() {
+export default function QrModal({ onClose = () => {} }) {
+  const [copied, setCopied] = useState(false);
+
+  const copyLink = () => {
+    const linkText = "https://www.figma.com/design/ZqVCE6DcVwxLilVKhaD4K/Projects?node-id=377-3004&t=xAPwP28dl";
+    const textArea = document.createElement("textarea");
+    textArea.value = linkText;
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+      document.execCommand('copy');
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text', err);
+    }
+    document.body.removeChild(textArea);
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-red-100 relative text-center animate-in fade-in zoom-in-95 duration-200">
+    <div 
+      className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-red-100 relative text-center animate-in fade-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
         <button 
           type="button"
+          onClick={onClose}
           className="absolute top-4 right-4 text-red-400 hover:text-red-700 p-1.5 rounded-full hover:bg-red-50 transition"
           aria-label="Close modal"
         >
@@ -26,10 +51,11 @@ export default function QrModal() {
           <span className="truncate">https://www.figma.com/design/ZqVCE6DcVwxLilVKhaD4K/...</span>
           <button 
             type="button"
+            onClick={copyLink}
             className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded font-medium flex items-center gap-1 shrink-0 transition"
           >
-            <Copy className="w-3.5 h-3.5" />
-            <span>Copy</span>
+            {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+            <span>{copied ? 'Copied' : 'Copy'}</span>
           </button>
         </div>
       </div>
