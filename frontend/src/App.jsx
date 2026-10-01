@@ -54,7 +54,7 @@ export default function App() {
       )}
 
       {screen === 'ended' && (
-        <EndedScreen onStartNewSession={() => setScreen('splash')} />
+        <EndedScreen onStartNewSession={() => setScreen('dashboard')} />
       )}
 
       <Footer />

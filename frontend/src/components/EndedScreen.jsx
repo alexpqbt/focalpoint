@@ -38,7 +38,7 @@ export default function EndedScreen({ onStartNewSession = () => {} }) {
         <button 
           type="button"
           onClick={onStartNewSession}
-          className="text-xs text-red-500 hover:text-red-700 underline font-medium pt-2"
+          className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-6 rounded-xl shadow-lg shadow-red-600/30 flex items-center justify-center gap-2 transition active:scale-95"
         >
           Start New Session
         </button>
