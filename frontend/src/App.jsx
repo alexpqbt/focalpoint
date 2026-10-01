@@ -30,10 +30,6 @@ export default function App() {
     setViewers((prev) => prev.filter((v) => v !== nameToRemove));
   };
 
-  const handleSendMessage = (text) => {
-    if (!text.trim()) return;
-    setMessages((prev) => [...prev, { name: "Host", text }]);
-  };
 
   return (
     <div className="min-h-screen bg-slate-50 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:24px_24px] flex flex-col justify-between text-red-700 font-sans select-none">
@@ -75,7 +71,6 @@ export default function App() {
       {activeModal === 'chat' && (
         <ChatModal 
           messages={messages}
-          onSendMessage={handleSendMessage}
           onClose={() => setActiveModal(null)} 
         />
       )}
