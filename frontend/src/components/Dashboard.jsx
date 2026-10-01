@@ -3,17 +3,17 @@ import Sidebar from './Sidebar';
 import BroadcastScreen from './BroadcastScreen';
 
 export default function Dashboard({ 
-  onOpenModal, 
+  onEndSession = () => {},
+  onOpenModal = () => {}, 
   viewers = [], 
-  onRemoveViewer, 
   messages = [] 
 }) {
   return (
     <div className="flex flex-1 overflow-hidden">
       <Sidebar 
+        onEndSession={onEndSession}
         onOpenModal={onOpenModal} 
         viewers={viewers} 
-        onRemoveViewer={onRemoveViewer} 
         messages={messages} 
       />
       <BroadcastScreen />

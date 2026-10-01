@@ -1,6 +1,7 @@
 export { default as Header } from './Header';
 export { default as Footer } from './Footer';
 export { default as SplashScreen } from './SplashScreen';
+export { default as EndedScreen } from './EndedScreen';
 export { default as BroadcastScreen } from './BroadcastScreen';
 export { default as Sidebar } from './Sidebar';
 export { default as Dashboard } from './Dashboard';

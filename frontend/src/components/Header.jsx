@@ -1,7 +1,19 @@
 import React from 'react';
 import { Tv } from 'lucide-react';
 
-export default function Header() {
+export default function Header({ currentScreen = 'splash' }) {
+  const getStatusText = () => {
+    switch (currentScreen) {
+      case 'dashboard':
+        return 'Mode: Live Session Active';
+      case 'ended':
+        return 'Mode: Session Ended';
+      case 'splash':
+      default:
+        return 'Mode: Standby';
+    }
+  };
+
   return (
     <header className="flex items-center justify-between px-6 py-4 bg-white border-b border-red-100 shadow-sm z-20">
       <div className="flex items-center space-x-2">
@@ -11,7 +23,7 @@ export default function Header() {
         <span className="text-xl font-bold tracking-tight text-red-600">FocalPoint</span>
       </div>
       <div className="text-xs text-red-400 font-mono hidden sm:block">
-        Mode: Standby
+        {getStatusText()}
       </div>
     </header>
   );
