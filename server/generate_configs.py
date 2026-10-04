@@ -4,9 +4,8 @@ from dotenv import load_dotenv
 from networking import get_local_ip
 from pathlib import Path
 
-load_dotenv("../.env")
-
 BASE = Path(__file__).resolve().parents[1]
+load_dotenv(BASE / ".env")
 
 def generate_livekit_yaml(local_ip):
     config = {
@@ -44,7 +43,7 @@ http {{
         listen       8080;
 
         location / {{
-            root   "{public}";
+            root   "{public.as_posix()}";
             index  index.html;
             try_files $uri $uri/ /index.html;
         }}
@@ -52,7 +51,7 @@ http {{
         location = / {{
             allow 127.0.0.1;
             deny all;
-            root   "{public}";
+            root   "{public.as_posix()}";
             index  index.html;
             try_files $uri $uri/ /index.html;
         }}
