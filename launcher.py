@@ -60,6 +60,9 @@ def start_fastapi():
 
 def start_nginx():
     print("Starting nginx...")
+    nginx_path = BASE / "nginx"
+    Path(nginx_path / "logs").mkdir(parents=True, exist_ok=True)
+    Path(nginx_path / "temp").mkdir(parents=True, exist_ok=True)
     proc = subprocess.Popen(
         [str(BASE / "nginx" / "nginx.exe"),
          "-p", str(BASE / "nginx"),
