@@ -204,7 +204,7 @@ export default function PresenterApp() {
       )}
 
       {screen === 'ended' && (
-        <EndedScreen onStartNewSession={() => setScreen('dashboard')} />
+        <EndedScreen onStartNewSession={startSharing} />
       )}
 
       <Footer />
