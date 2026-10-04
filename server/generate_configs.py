@@ -44,7 +44,7 @@ http {{
         listen       8080;
 
         location / {{
-            root   {public};
+            root   "{public}";
             index  index.html;
             try_files $uri $uri/ /index.html;
         }}
@@ -52,7 +52,7 @@ http {{
         location = / {{
             allow 127.0.0.1;
             deny all;
-            root   {public};
+            root   "{public}";
             index  index.html;
             try_files $uri $uri/ /index.html;
         }}
