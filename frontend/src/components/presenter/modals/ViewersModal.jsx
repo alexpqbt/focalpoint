@@ -1,30 +1,30 @@
 import React from 'react';
 import { X } from 'lucide-react';
 
-export default function ViewersModal({ 
-  viewers = [], 
-  onRemoveViewer = () => {}, 
-  onClose = () => {} 
+export default function ViewersModal({
+  viewers = [],
+  onRemoveViewer = () => {},
+  onClose = () => {},
 }) {
-  const handleRemoveViewer = (viewer, e) => {
+  const handleRemoveViewer = (identity, e) => {
     e.stopPropagation();
-    onRemoveViewer(viewer, e);
+    onRemoveViewer(identity);
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
       onClick={onClose}
     >
-      <div 
+      <div
         className="bg-white rounded-xl max-w-lg w-full shadow-2xl border border-red-100 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-red-100">
           <h3 className="font-semibold text-red-700">Viewers: {viewers.length}</h3>
-          <button 
+          <button
             type="button"
-            onClick={onClose} 
+            onClick={onClose}
             className="text-red-500 hover:text-red-700"
             aria-label="Close modal"
           >
@@ -36,13 +36,16 @@ export default function ViewersModal({
             <span>Name</span>
             <span className="text-right">Action</span>
           </div>
-          {viewers.map((viewer, idx) => (
-            <div key={idx} className="grid grid-cols-2 items-center text-sm py-2 border-b border-red-50">
-              <span className="font-medium text-red-900">{viewer}</span>
+          {viewers.map((viewer) => (
+            <div
+              key={viewer.identity}
+              className="grid grid-cols-2 items-center text-sm py-2 border-b border-red-50"
+            >
+              <span className="font-medium text-red-900">{viewer.name}</span>
               <div className="text-right">
-                <button 
+                <button
                   type="button"
-                  onClick={(e) => handleRemoveViewer(viewer, e)} 
+                  onClick={(e) => handleRemoveViewer(viewer.identity, e)}
                   className="text-red-600 hover:text-red-800 text-xs font-medium"
                 >
                   Remove
