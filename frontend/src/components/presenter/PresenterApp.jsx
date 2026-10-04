@@ -69,22 +69,25 @@ export default function PresenterApp() {
 
   const stopSharing = useCallback(async () => {
     const room = roomRef.current;
-    if (!room) return;
-    try {
-      if (qrRef.current) qrRef.current.replaceChildren();
-      await room.localParticipant.setScreenShareEnabled(false);
-      await room.disconnect();
-      if (previewRef.current) previewRef.current.srcObject = null;
-      setViewerURL('');
-      setScreenStream(null);
-      roomRef.current = null;
-    } catch (err) {
-      console.error('Failed to stop sharing:', err);
-    } finally {
-      setIsSharing(false);
-      stopPolling();
-      setViewers([]);
+    if (room) {
+      try {
+        if (qrRef.current) qrRef.current.replaceChildren();
+        await room.localParticipant.setScreenShareEnabled(false);
+        await room.disconnect();
+        if (previewRef.current) previewRef.current.srcObject = null;
+        setViewerURL('');
+        setScreenStream(null);
+        roomRef.current = null;
+      } catch (err) {
+        console.error('Failed to stop sharing:', err);
+      }
     }
+    // ALWAYS reset UI state, even if room was null
+    setIsSharing(false);
+    stopPolling();
+    setViewers([]);
+    setScreenStream(null);
+    setViewerURL('');
   }, [stopPolling]);
 
   const startSharing = useCallback(async () => {
@@ -126,8 +129,8 @@ export default function PresenterApp() {
 
   // attach the stream to the video element AFTER it's rendered
   useEffect(() => {
-    if (previewRef.current && screenStream) {
-      previewRef.current.srcObject = screenStream;
+    if (previewRef.current) {
+      previewRef.current.srcObject = screenStream;  // sets or clears
     }
   }, [screenStream, screen]);
 
@@ -142,6 +145,7 @@ export default function PresenterApp() {
 
   const handleEndSession = useCallback(async () => {
     await stopSharing();
+    setMessages([]);        // clear chat
     setScreen('ended');
   }, [stopSharing]);
 
