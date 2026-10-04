@@ -72,7 +72,7 @@ async def verify_admin(authorization: str = Header(...)) -> None:
 
 @app.get("/participants")
 async def list_participants(_: None = Depends(verify_admin)):
-    async with api.LiveKitAPI() as lkapi:
+    async with api.LiveKitAPI(api_key = API_KEY, api_secret = API_SECRET) as lkapi:
         res = await lkapi.room.list_participants(
             api.ListParticipantsRequest(room=ROOM_NAME)
         )
