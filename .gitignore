@@ -4,7 +4,8 @@ certs/
 # Environment and secrets
 .env
 *.env
-livekit.yaml
+livekit/livekit.yaml
+nginx/conf/nginx.conf
 
 # Python
 __pycache__/
