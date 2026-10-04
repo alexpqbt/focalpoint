@@ -28,8 +28,7 @@ def generate_livekit_yaml(local_ip):
     print(f"Generated: {path}")
 
 def generate_nginx_conf():
-    public = BASE / "public"
-    view_html = public / "view.html"
+    public = BASE / "frontend" / "dist"
 
     config = f"""worker_processes 1;
 
@@ -46,7 +45,7 @@ http {{
 
         location / {{
             root   {public};
-            index  present.html;
+            index  index.html;
             try_files $uri $uri/ =404;
         }}
 
@@ -54,19 +53,8 @@ http {{
             allow 127.0.0.1;
             deny all;
             root   {public};
-            index  present.html;
+            index  index.html;
             try_files $uri $uri/ =404;
-        }}
-
-        location = /view {{
-            alias   {view_html};
-            add_header Content-Type text/html;
-        }}
-
-        location = /present.html {{
-            allow 127.0.0.1;
-            deny all;
-            root {public};
         }}
 
         location /config {{
