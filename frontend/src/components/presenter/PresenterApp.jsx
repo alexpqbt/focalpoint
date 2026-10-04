@@ -208,7 +208,10 @@ export default function PresenterApp() {
       )}
 
       {screen === 'ended' && (
-        <EndedScreen onStartNewSession={startSharing} />
+        <EndedScreen 
+          onStartNewSession={startSharing}
+          onExport={exportLog}
+        />
       )}
 
       <Footer />
