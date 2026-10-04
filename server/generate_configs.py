@@ -46,7 +46,7 @@ http {{
         location / {{
             root   {public};
             index  index.html;
-            try_files $uri $uri/ =404;
+            try_files $uri $uri/ /index.html;
         }}
 
         location = / {{
@@ -54,7 +54,7 @@ http {{
             deny all;
             root   {public};
             index  index.html;
-            try_files $uri $uri/ =404;
+            try_files $uri $uri/ /index.html;
         }}
 
         location /config {{
