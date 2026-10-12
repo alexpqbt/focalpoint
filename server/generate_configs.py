@@ -79,6 +79,10 @@ http {{
         location /room-config {{
             proxy_pass http://backend;
         }}
+
+        location /rooms {{
+            proxy_pass http://backend;
+        }}
     }}
 }}
 """

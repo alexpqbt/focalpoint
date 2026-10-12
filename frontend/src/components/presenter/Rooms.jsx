@@ -18,9 +18,9 @@ const findDuplicate = (labels) => {
 };
 
 const DEFAULT_FIELDS = [
-  { name: 'Section', value: 'BSIT 4C' },
-  { name: 'Subject', value: 'IT-ELEC 3' },
-  { name: 'EDP Code', value: '1234567' },
+  { name: 'Section', value: '' },
+  { name: 'Subject', value: '' },
+  { name: 'EDP Code', value: '' },
 ];
 
 const copyFields = (fields = []) => fields.map(f => ({ ...f }));
@@ -31,22 +31,29 @@ const cleanFields = (fields = []) =>
     .filter(f => f.name);
 
 const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => {} }, ref) {
-    const [rooms, setRooms] = useState([
-    {
-      id: 1,
-      label: 'Room 1',
-      roomSize: '51',
-      fields: copyFields(DEFAULT_FIELDS),
-      userInputs: ['First Name', 'Last Name']
-    },
-    {
-      id: 2,
-      label: 'Room 2',
-      roomSize: '51',
-      fields: copyFields(DEFAULT_FIELDS),
-      userInputs: ['First Name', 'Last Name']
-    },
-  ]);
+  const [rooms, setRooms] = useState(null); // null = still loading
+  const [roomsError, setRoomsError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/rooms')
+      .then((r) => {
+        if (!r.ok) throw new Error(`status ${r.status}`);
+        return r.json();
+      })
+      .then((list) => {
+        if (!cancelled) setRooms(Array.isArray(list) ? list : []);
+      })
+      .catch((err) => {
+        console.error('Failed to load rooms:', err);
+        if (!cancelled) {
+          setRooms([]);
+          setRoomsError('Could not load saved rooms.');
+        }
+      });
+    return () => { cancelled = true; };
+  }, []);
   
   const [logs, setLogs] = useState(null); // null = still loading
 
@@ -81,20 +88,18 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
 
   const handleAddRoom = () => {
     setInputError('');
-    const newId = rooms.length > 0 ? Math.max(...rooms.map(r => r.id)) + 1 : 1;
-    const newRoom = {
-      id: newId,
-      label: `Room ${newId}`,
+    const draft = {
+      id: null,
+      label: 'New Room',
       roomSize: '51',
       fields: copyFields(DEFAULT_FIELDS),
-      userInputs: ['First Name', 'Last Name']
+      userInputs: ['First Name', 'Last Name'],
     };
-    setRooms(prev => [...prev, newRoom]);
-    setSelectedRoom(newRoom);
-    setFormData({ 
-      ...newRoom,
-      fields: copyFields(newRoom.fields),
-      userInputs: [...newRoom.userInputs]
+    setSelectedRoom(draft);
+    setFormData({
+      ...draft,
+      fields: copyFields(draft.fields),
+      userInputs: [...draft.userInputs],
     });
     setIsCustomizing(true);
     setIsModalOpen(true);
@@ -148,10 +153,17 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
     });
   };
 
-  const handleSaveCustomization = () => {
+  const handleSaveCustomization = async () => {
+    if (saving) return;
+
     const userInputs = cleanUserInputs(formData.userInputs);
     const fields = cleanFields(formData.fields);
+    const roomSize = String(formData.roomSize ?? '').trim() || '51';
 
+    if (!/^\d+$/.test(roomSize) || Number(roomSize) < 1 || Number(roomSize) > 51) {
+      setInputError('Room size must be a number from 1 to 51.');
+      return;
+    }
     const dupInput = findDuplicate(userInputs);
     if (dupInput) {
       setInputError(`"${dupInput}" is used more than once in User Inputs.`);
@@ -171,14 +183,46 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
       return;
     }
 
-    setInputError('');
-    const saved = { ...formData, userInputs, fields };
-    setRooms(prev => prev.map(r => r.id === selectedRoom.id ? saved : r));
-    setSelectedRoom(saved);
-    setIsCustomizing(false);
+    setSaving(true);
+    const isDraft = selectedRoom.id === null;
+    try {
+      const res = await fetch(isDraft ? '/rooms' : `/rooms/${selectedRoom.id}`, {
+        method: isDraft ? 'POST' : 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ room_size: roomSize, fields, user_inputs: userInputs }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        setInputError(typeof err?.detail === 'string' ? err.detail : 'Could not save the room.');
+        return;
+      }
+      const saved = await res.json();
+      setRooms(prev =>
+        isDraft
+          ? [...(prev || []), saved]
+          : (prev || []).map(r => (r.id === saved.id ? saved : r))
+      );
+      setSelectedRoom(saved);
+      setFormData({
+        ...saved,
+        fields: copyFields(saved.fields),
+        userInputs: [...saved.userInputs],
+      });
+      setInputError('');
+      setIsCustomizing(false);
+    } catch {
+      setInputError('Could not reach the server.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleShareScreen = async () => {
+    if (isCustomizing) {
+      setInputError('Save your customization before sharing.');
+      return;
+    }
+
   const userInputs = cleanUserInputs(selectedRoom.userInputs);
     try {
       const res = await fetch('/room-config', {
@@ -224,24 +268,39 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
         </div>
         
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {rooms.map((room) => (
-            <div 
-              key={room.id}
-              onClick={() => handleSelectRoom(room)}
-              className="p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors group"
-            >
-              <div className="text-xs text-gray-400 mb-1">
-                {room.label}
+          {roomsError && (
+            <p className="p-3 text-sm text-red-600" role="alert">{roomsError}</p>
+          )}
+          {rooms && rooms.length === 0 && !roomsError && (
+            <p className="p-3 text-sm text-gray-400">
+              No saved rooms yet. Press Add Room to create one.
+            </p>
+          )}
+          {(rooms || []).map((room) => {
+            const values = (room.fields || []).map(f => f.value).filter(Boolean);
+            return (
+              <div
+                key={room.id}
+                onClick={() => handleSelectRoom(room)}
+                className="p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors group"
+              >
+                <div className="text-xs text-gray-400 mb-1">
+                  {room.label}
+                </div>
+                <div className="flex items-center space-x-2 text-sm">
+                  {values.length === 0 ? (
+                    <span className="text-gray-400">No details set</span>
+                  ) : (
+                    values.map((v, i) => (
+                      <span key={i} className={i === 0 ? 'font-bold text-gray-900' : 'text-gray-600'}>
+                        {v}
+                      </span>
+                    ))
+                  )}
+                </div>
               </div>
-              <div className="flex items-center space-x-2 text-sm">
-                {(room.fields || []).map((f, i) => (
-                  <span key={i} className={i === 0 ? 'font-bold text-gray-900' : 'text-gray-600'}>
-                    {f.value}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

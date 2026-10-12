@@ -239,3 +239,58 @@ async def save_session_log(data: SavedLogIn, request: Request):
 async def list_saved_logs(request: Request):
     require_localhost(request)
     return db.list_logs()
+
+class RoomIn(BaseModel):
+    room_size: str = "51"
+    fields: list[SessionField] = []
+    user_inputs: list[str] = []
+
+def clean_room(data: RoomIn):
+    size = data.room_size.strip() or "51"
+    if not size.isdigit() or not (1 <= int(size) <= 51):
+        raise HTTPException(status_code=400, detail="Room size must be a number from 1 to 51")
+
+    labels = [l.strip() for l in data.user_inputs if l.strip()]
+    if len(labels) > 5 or any(len(l) > 30 for l in labels):
+        raise HTTPException(status_code=400, detail="Max 5 inputs, 30 characters each")
+    if len({l.lower() for l in labels}) != len(labels):
+        raise HTTPException(status_code=400, detail="Duplicate user inputs")
+
+    fields = [
+        {"name": f.name.strip(), "value": f.value.strip()}
+        for f in data.fields
+        if f.name.strip()
+    ]
+    if len(fields) > 6 or any(len(f["name"]) > 30 or len(f["value"]) > 50 for f in fields):
+        raise HTTPException(status_code=400, detail="Max 6 fields; names 30 characters, values 50")
+    if len({f["name"].lower() for f in fields}) != len(fields):
+        raise HTTPException(status_code=400, detail="Duplicate field names")
+
+    return size, fields, labels
+
+@app.get("/rooms")
+async def list_rooms(request: Request):
+    require_localhost(request)
+    return db.list_rooms()
+
+@app.post("/rooms")
+async def create_room(data: RoomIn, request: Request):
+    require_localhost(request)
+    size, fields, labels = clean_room(data)
+    return db.create_room(size, fields, labels)
+
+@app.put("/rooms/{room_id}")
+async def update_room(room_id: int, data: RoomIn, request: Request):
+    require_localhost(request)
+    size, fields, labels = clean_room(data)
+    room = db.update_room(room_id, size, fields, labels)
+    if room is None:
+        raise HTTPException(status_code=404, detail="Room not found")
+    return room
+
+@app.delete("/rooms/{room_id}")
+async def delete_room(room_id: int, request: Request):
+    require_localhost(request)
+    if not db.delete_room(room_id):
+        raise HTTPException(status_code=404, detail="Room not found")
+    return {"status": "deleted", "id": room_id}

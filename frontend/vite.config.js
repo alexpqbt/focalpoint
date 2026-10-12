@@ -16,6 +16,7 @@ export default defineConfig({
       '/room-config':  'http://127.0.0.1:5000',
       '/logs/snapshot':'http://127.0.0.1:5000',
       '/logs/render':  'http://127.0.0.1:5000',
+      '/rooms':        'http://127.0.0.1:5000',
     },
   },
 })
