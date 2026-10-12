@@ -1,35 +1,32 @@
-const KEY = 'focalpoint.logs';
-const MAX_LOGS = 10;
-
-export function loadLogs() {
+export async function loadLogs() {
   try {
-    const logs = JSON.parse(localStorage.getItem(KEY));
+    const res = await fetch('/logs/saved');
+    if (!res.ok) return [];
+    const logs = await res.json();
     return Array.isArray(logs) ? logs : [];
-  } catch {
+  } catch (err) {
+    console.error('Failed to load logs:', err);
     return [];
   }
 }
 
-export function saveLog(snapshot) {
+export async function saveLog(snapshot) {
   if (!snapshot?.rows?.length) return null; // nobody joined, nothing to save
-
-  const logs = loadLogs();
-  const number = logs.reduce((max, l) => Math.max(max, l.number || 0), 0) + 1;
-  const date = new Date().toLocaleDateString('en-US');
-  const entry = {
-    id: Date.now(),
-    number,
-    label: `Log ${number}: ${date}`,
-    fieldValues: snapshot.field_values || [],
-    columns: snapshot.columns,
-    rows: snapshot.rows,
-  };
-
   try {
-    localStorage.setItem(KEY, JSON.stringify([entry, ...logs].slice(0, MAX_LOGS)));
+    const res = await fetch('/logs/saved', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        columns: snapshot.columns,
+        rows: snapshot.rows,
+        field_values: snapshot.field_values || [],
+      }),
+    });
+    if (!res.ok) throw new Error(`status ${res.status}`);
+    const data = await res.json();
+    return data.entry || null;
   } catch (err) {
     console.error('Failed to save log:', err);
     return null;
   }
-  return entry;
 }

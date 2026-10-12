@@ -8,10 +8,12 @@ from networking import get_local_ip
 import log_session
 from pydantic import BaseModel
 import json
+import db
 
 load_dotenv("../.env")
 
 app = FastAPI()
+db.init()
 
 app.add_middleware(
     CORSMiddleware,
@@ -216,3 +218,24 @@ async def logs_render(table: TableData, request: Request, format: str = Query(de
             headers={"Content-Disposition": "attachment; filename=log_session.pdf"},
         )
     raise HTTPException(status_code=400, detail="format must be csv or pdf")
+
+class SavedLogIn(BaseModel):
+    columns: list[str]
+    rows: list[list[str]]
+    field_values: list[str] = []
+
+@app.post("/logs/saved")
+async def save_session_log(data: SavedLogIn, request: Request):
+    require_localhost(request)
+    if len(data.columns) > 20 or len(data.rows) > 5000:
+        raise HTTPException(status_code=400, detail="Table too large")
+    if any(len(r) != len(data.columns) for r in data.rows):
+        raise HTTPException(status_code=400, detail="Row length does not match columns")
+    if not data.rows:
+        return {"saved": False}
+    return {"saved": True, "entry": db.save_log(data.columns, data.rows, data.field_values)}
+
+@app.get("/logs/saved")
+async def list_saved_logs(request: Request):
+    require_localhost(request)
+    return db.list_logs()

@@ -1,4 +1,4 @@
-import React, { useState, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { createPortal } from 'react-dom';
 import { Cast, X, Plus } from 'lucide-react';
 import Logs from './Logs';
@@ -48,7 +48,15 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
     },
   ]);
   
-  const [logs] = useState(loadLogs);
+  const [logs, setLogs] = useState(null); // null = still loading
+
+  useEffect(() => {
+    let cancelled = false;
+    loadLogs().then((l) => {
+      if (!cancelled) setLogs(l);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -244,10 +252,10 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
         </div>
         
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {logs.length === 0 && (
+          {logs && logs.length === 0 && (
             <p className="p-3 text-sm text-gray-400">No saved logs yet.</p>
           )}
-          {logs.map((log) => (
+          {(logs || []).map((log) => (
             <div
               key={log.id}
               onClick={() => {

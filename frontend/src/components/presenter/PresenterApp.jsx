@@ -149,7 +149,7 @@ export default function PresenterApp() {
     try {
       await fetchParticipants(); // records any last joins or leaves
       const res = await fetch('/logs/snapshot');
-      if (res.ok) saveLog(await res.json());
+      if (res.ok) await saveLog(await res.json());
     } catch (err) {
       console.error('Failed to save session log:', err);
     }
