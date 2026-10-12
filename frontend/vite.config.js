@@ -13,6 +13,7 @@ export default defineConfig({
       '/token':        'http://127.0.0.1:5000',
       '/participants': 'http://127.0.0.1:5000',
       '/logs':         'http://127.0.0.1:5000',
+      '/room-config':         'http://127.0.0.1:5000',
     },
   },
 })

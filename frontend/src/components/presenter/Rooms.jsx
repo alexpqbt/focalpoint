@@ -3,6 +3,19 @@ import { createPortal } from 'react-dom';
 import { Cast, X, Plus } from 'lucide-react';
 import Logs from './Logs';
 
+const cleanUserInputs = (inputs = []) =>
+  inputs.map(v => v.trim()).filter(Boolean);
+
+const findDuplicate = (labels) => {
+  const seen = new Set();
+  for (const label of labels) {
+    const key = label.toLowerCase();
+    if (seen.has(key)) return label;
+    seen.add(key);
+  }
+  return null;
+};
+
 const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => {} }, ref) {
   const [rooms, setRooms] = useState([
     { 
@@ -37,11 +50,13 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCustomizing, setIsCustomizing] = useState(false);
   const [formData, setFormData] = useState({});
+  const [inputError, setInputError] = useState('');
 
   const [selectedLog, setSelectedLog] = useState(null);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
 
   const handleSelectRoom = (room) => {
+    setInputError('');
     setSelectedRoom(room);
     setFormData({ 
       ...room,
@@ -53,6 +68,7 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
   };
 
   const handleAddRoom = () => {
+    setInputError('');
     const newId = rooms.length > 0 ? Math.max(...rooms.map(r => r.id)) + 1 : 1;
     const newRoom = {
       id: newId,
@@ -124,12 +140,33 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
   };
 
   const handleSaveCustomization = () => {
-    setRooms(prev => prev.map(r => r.id === selectedRoom.id ? { ...formData } : r));
-    setSelectedRoom({ ...formData });
+    const userInputs = cleanUserInputs(formData.userInputs);
+    const dup = findDuplicate(userInputs);
+    if (dup) {
+      setInputError(`"${dup}" is used more than once in User Inputs.`);
+      return;
+    }
+    setInputError('');
+    const saved = { ...formData, userInputs };
+    setRooms(prev => prev.map(r => r.id === selectedRoom.id ? saved : r));
+    setSelectedRoom(saved);
     setIsCustomizing(false);
   };
 
-  const handleShareScreen = () => {
+  const handleShareScreen = async () => {
+  const userInputs = cleanUserInputs(selectedRoom.userInputs);
+    try {
+      const res = await fetch('/room-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_inputs: userInputs }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setInputError('Could not send viewer fields to the server.');
+      return;
+    }
+    setInputError('');
     setIsModalOpen(false);
     if (onShareScreen) {
       onShareScreen(selectedRoom);
@@ -137,6 +174,7 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
   };
 
   const closeModal = () => {
+    setInputError('');
     setIsModalOpen(false);
     setIsCustomizing(false);
   };
@@ -258,6 +296,10 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
                 <X className="w-6 h-6" />
               </button>
             </div>
+
+            {inputError && (
+              <p className="pt-4 text-sm text-red-600" role="alert">{inputError}</p>
+            )}
 
             {/* Modal Body */}
             {isCustomizing ? (

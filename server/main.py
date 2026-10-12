@@ -6,6 +6,7 @@ import os
 from dotenv import load_dotenv
 from networking import get_local_ip
 import log_session
+from pydantic import BaseModel
 
 load_dotenv("../.env")
 
@@ -57,6 +58,28 @@ def get_config():
         "livekit_uri": os.environ.get("LIVEKIT_URL"),
         "server_ip": get_local_ip()
     }
+
+room_config = {"user_inputs": []}
+
+class RoomConfig(BaseModel):
+    user_inputs: list[str]
+
+@app.post("/room-config")
+async def set_room_config(cfg: RoomConfig, request: Request):
+    client_ip = request.headers.get("x-real-ip", request.client.host)
+    if client_ip not in ("127.0.0.1", "::1"):
+        raise HTTPException(status_code=403, detail="Host access is restricted to this machine")
+    labels = [l.strip() for l in cfg.user_inputs if l.strip()]
+    if len(labels) > 5 or any(len(l) > 30 for l in labels):
+        raise HTTPException(status_code=400, detail="Max 5 inputs, 30 characters each")
+    if len({l.lower() for l in labels}) != len(labels):
+        raise HTTPException(status_code=400, detail="Duplicate labels")
+    room_config["user_inputs"] = labels
+    return room_config
+
+@app.get("/room-config")
+async def get_room_config():
+    return room_config
 
 async def verify_admin(authorization: str = Header(...)) -> None:
     if not authorization.startswith("Bearer "):
