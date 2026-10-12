@@ -30,7 +30,7 @@ const cleanFields = (fields = []) =>
     .map(f => ({ name: f.name.trim(), value: f.value.trim() }))
     .filter(f => f.name);
 
-const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => {} }, ref) {
+const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => { } }, ref) {
   const [rooms, setRooms] = useState(null); // null = still loading
   const [roomsError, setRoomsError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -54,7 +54,7 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
       });
     return () => { cancelled = true; };
   }, []);
-  
+
   const [logs, setLogs] = useState(null); // null = still loading
 
   useEffect(() => {
@@ -77,7 +77,7 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
   const handleSelectRoom = (room) => {
     setInputError('');
     setSelectedRoom(room);
-    setFormData({ 
+    setFormData({
       ...room,
       fields: copyFields(room.fields),
       userInputs: [...(room.userInputs || [])]
@@ -223,7 +223,7 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
       return;
     }
 
-  const userInputs = cleanUserInputs(selectedRoom.userInputs);
+    const userInputs = cleanUserInputs(selectedRoom.userInputs);
     try {
       const res = await fetch('/room-config', {
         method: 'POST',
@@ -253,12 +253,12 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
 
   return (
     <div className={`flex flex-col h-full w-80 bg-white/95 backdrop-blur-sm border border-gray-200/80 rounded-2xl shadow-xl overflow-hidden text-left ${className}`}>
-      
+
       {/* Saved Rooms Section */}
       <div className="flex flex-col h-1/2 border-b border-gray-200">
         <div className="p-4 flex items-center justify-between border-b border-gray-100">
           <h2 className="text-lg font-semibold text-gray-800">Saved Rooms</h2>
-          <button 
+          <button
             onClick={handleAddRoom}
             className="bg-blue-400 hover:bg-blue-500 text-white text-sm font-medium py-1.5 px-3 rounded-full flex items-center transition-colors"
           >
@@ -266,7 +266,7 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
             <span className="ml-1 font-bold">+</span>
           </button>
         </div>
-        
+
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {roomsError && (
             <p className="p-3 text-sm text-red-600" role="alert">{roomsError}</p>
@@ -309,7 +309,7 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
         <div className="p-4 border-b border-gray-100">
           <h2 className="text-lg font-semibold text-gray-800">Logs</h2>
         </div>
-        
+
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {logs && logs.length === 0 && (
             <p className="p-3 text-sm text-gray-400">No saved logs yet.</p>
@@ -340,11 +340,11 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
 
       {/* Customization Modal rendered outside container via portal to hover above sidebar and splashscreen */}
       {isModalOpen && selectedRoom && typeof document !== 'undefined' && createPortal(
-        <div 
+        <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4"
           onClick={closeModal}
         >
-          <div 
+          <div
             className="bg-white rounded-2xl shadow-2xl border border-gray-100 max-w-4xl w-full p-8 relative animate-in fade-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
           >
@@ -424,7 +424,7 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
                       <Plus className="w-4 h-4 font-bold" />
                     </button>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                     {formData.fields?.map((field, idx) => (
                       <div key={idx} className="flex flex-col gap-2">
@@ -471,7 +471,7 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
                       <Plus className="w-4 h-4 font-bold" />
                     </button>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                     {formData.userInputs?.map((input, idx) => (
                       <div key={idx} className="flex flex-col">

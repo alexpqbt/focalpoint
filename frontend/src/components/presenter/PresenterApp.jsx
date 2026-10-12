@@ -138,8 +138,8 @@ export default function PresenterApp() {
 
   // render the QR code once the qr div and the URL are both ready
   useEffect(() => {
-  if (activeModal === 'qr' && qrRef.current && viewerURL) {
-    toCanvas(qrRef.current, viewerURL, { width: 256 }, (err) => {
+    if (activeModal === 'qr' && qrRef.current && viewerURL) {
+      toCanvas(qrRef.current, viewerURL, { width: 256 }, (err) => {
         if (err) console.error('QR render failed:', err);
       });
     }
