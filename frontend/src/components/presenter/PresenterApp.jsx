@@ -3,7 +3,6 @@ import Header from '../common/Header';
 import Footer from '../common/Footer';
 import SplashScreen from './SplashScreen';
 import Dashboard from './Dashboard';
-import EndedScreen from './EndedScreen';
 import QrModal from './modals/QrModal';
 import ViewersModal from './modals/ViewersModal';
 import ChatModal from './modals/ChatModal';
@@ -210,13 +209,6 @@ export default function PresenterApp() {
           previewRef={previewRef}
           onExport={exportLog}
           isSharing={isSharing}
-        />
-      )}
-
-      {screen === 'ended' && (
-        <EndedScreen 
-          onStartNewSession={startSharing}
-          onExport={exportLog}
         />
       )}
 

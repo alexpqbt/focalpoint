@@ -6,8 +6,6 @@ export default function Header({ currentScreen = 'splash' }) {
     switch (currentScreen) {
       case 'dashboard':
         return 'Mode: Live Session Active';
-      case 'ended':
-        return 'Mode: Session Ended';
       case 'splash':
       default:
         return 'Mode: Standby';
