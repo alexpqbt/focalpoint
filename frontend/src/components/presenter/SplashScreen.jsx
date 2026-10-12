@@ -1,9 +1,15 @@
 import React from 'react';
 import { Tv, Radio } from 'lucide-react';
+import Rooms from './Rooms';
 
 export default function SplashScreen({ onShareScreen = () => {} }) {
   return (
-    <main className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+    <main className="relative flex-1 flex flex-col items-center justify-center p-6 text-center">
+      {/* Floating Rooms Sidebar */}
+      <div className="absolute left-6 top-6 bottom-6 z-10 text-left">
+        <Rooms onShareScreen={onShareScreen} />
+      </div>
+
       <div className="bg-white/90 backdrop-blur-md p-10 rounded-2xl shadow-xl border border-red-100 max-w-lg w-full flex flex-col items-center space-y-6">
         <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center text-red-600 shadow-inner">
           <Tv className="w-8 h-8" />
