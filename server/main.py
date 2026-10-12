@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from networking import get_local_ip
 import log_session
 from pydantic import BaseModel
+import json
 
 load_dotenv("../.env")
 
@@ -30,6 +31,7 @@ async def get_token(
     role: str = Query(default="student"),
     identity: str = Query(default="student-guest"),
     name: str | None = None,
+    answers: str | None = None,
 ):
     if role == "presenter":
         client_ip = request.headers.get("x-real-ip", request.client.host)
@@ -39,6 +41,19 @@ async def get_token(
     can_publish = role == "presenter"
     is_admin = role == "presenter"
     name = name if name else identity
+
+    attributes = {}
+    if role != "presenter" and answers:
+        try:
+            raw = json.loads(answers)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="answers must be valid JSON")
+        if not isinstance(raw, dict):
+            raise HTTPException(status_code=400, detail="answers must be an object")
+        for label in room_config["user_inputs"]:
+            value = raw.get(label)
+            if isinstance(value, str) and value.strip():
+                attributes[label] = value.strip()[:50]
 
     token = api.AccessToken(API_KEY, API_SECRET) \
                 .with_identity(identity) \
@@ -50,6 +65,8 @@ async def get_token(
                     can_subscribe=True,
                     room_admin=is_admin,
                 ))
+    if attributes:
+        token = token.with_attributes(attributes)
     return token.to_jwt()
 
 @app.get("/config")
@@ -100,7 +117,12 @@ async def list_participants(_: None = Depends(verify_admin)):
             api.ListParticipantsRequest(room=ROOM_NAME)
         )
     participants = [
-        {"identity": p.identity, "name": p.name, "joined_at": p.joined_at}
+        {
+            "identity": p.identity,
+            "name": p.name,
+            "joined_at": p.joined_at,
+            "attributes": dict(p.attributes),
+        }
         for p in res.participants
         if p.identity != 'presenter' or p.name != 'presenter'
     ]
@@ -122,7 +144,7 @@ async def remove_participant(identity: str, _: None = Depends(verify_admin)):
 async def export_logs(format: str = Query(default="csv"), _: None = Depends(verify_admin)):
     if format == "csv":
         return StreamingResponse(
-            iter([log_session.to_csv_bytes()]),
+            iter([log_session.to_csv_bytes(room_config["user_inputs"])]),
             media_type="text/csv",
             headers={"Content-Disposition": "attachment; filename=log_session.csv"},
         )

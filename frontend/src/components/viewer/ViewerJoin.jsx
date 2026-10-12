@@ -29,7 +29,11 @@ export default function ViewerJoin({ onConnect = () => {} }) {
       alert('Please fill in all fields');
       return;
     }
-    onConnect(values.join(' '));
+    const answersByLabel = {};
+    userInputs.forEach((label, i) => {
+      answersByLabel[label] = values[i];
+    });
+    onConnect(values.join(' '), answersByLabel);
   };
 
   if (userInputs === null) {

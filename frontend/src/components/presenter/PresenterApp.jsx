@@ -17,7 +17,7 @@ export default function PresenterApp() {
   const [screen, setScreen] = useState('splash');
   const [activeModal, setActiveModal] = useState(null);
 
-  const [viewers, setViewers] = useState([]);       // array of { identity, name }
+  const [viewers, setViewers] = useState([]);
   const [messages, setMessages] = useState([]);
   const [viewerURL, setViewerURL] = useState('');
   const [isSharing, setIsSharing] = useState(false);
@@ -51,6 +51,7 @@ export default function PresenterApp() {
     setViewers(participants.map(p => ({
       identity: p.identity,
       name: p.name || p.identity,
+      attributes: p.attributes || {},
     })));
   }, []);
 
