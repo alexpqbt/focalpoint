@@ -1,94 +1,51 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-
-const DEFAULT_LOG_ENTRIES = [
-  {
-    date: '10/11/2026',
-    timestamp: '11:55 AM',
-    status: 'Entered',
-    firstName: 'John',
-    lastName: 'Injug',
-    section: 'BSIT 4C',
-    subject: 'IT-ELEC 3',
-    code: '124897',
-  },
-  {
-    date: '10/11/2026',
-    timestamp: '11:55 AM',
-    status: 'Entered',
-    firstName: 'Alexandre',
-    lastName: 'Paquibot',
-    section: 'BSIT 4C',
-    subject: 'IT-ELEC 3',
-    code: '124897',
-  },
-  {
-    date: '10/11/2026',
-    timestamp: '11:55 AM',
-    status: 'Entered',
-    firstName: 'Erika',
-    lastName: 'Samson',
-    section: 'BSIT 4C',
-    subject: 'IT-ELEC 3',
-    code: '124897',
-  },
-  {
-    date: '10/11/2026',
-    timestamp: '11:55 AM',
-    status: 'Entered',
-    firstName: 'Tristan',
-    lastName: 'Cabahug',
-    section: 'BSIT 4C',
-    subject: 'IT-ELEC 3',
-    code: '124897',
-  },
-  {
-    date: '10/11/2026',
-    timestamp: '11:55 AM',
-    status: 'Left',
-    firstName: 'John',
-    lastName: 'Injug',
-    section: 'BSIT 4C',
-    subject: 'IT-ELEC 3',
-    code: '124897',
-  },
-];
 
 export default function Logs({
   isOpen = false,
   onClose = () => {},
   log = null,
-  entries = DEFAULT_LOG_ENTRIES,
 }) {
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
   if (!isOpen || !log || typeof document === 'undefined') return null;
 
-  const handleDownloadCSV = () => {
-    const headers = ['Date', 'Time Stamp', 'Status', 'First Name', 'Last Name', 'Section', 'Subject', 'EDP Code'];
-    const rows = entries.map((e) => [
-      e.date,
-      e.timestamp,
-      e.status,
-      e.firstName,
-      e.lastName,
-      e.section,
-      e.subject,
-      e.code,
-    ]);
-    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `${log?.label ? log.label.replace(/[^a-zA-Z0-9]/g, '_') : 'log'}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
+  const columns = log.columns || [];
+  const rows = log.rows || [];
+  const fieldValues = log.fieldValues || [];
 
-  const handleDownloadPDF = () => {
-    window.print();
+  const sanitize = (s) =>
+    (s || 'log').replace(/[^a-zA-Z0-9]/g, '_');
+
+  const handleDownload = async (format) => {
+    setError('');
+    setBusy(true);
+    try {
+      const res = await fetch(`/logs/render?format=${format}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ columns, rows }),
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`Server returned ${res.status}${text ? ': ' + text : ''}`);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${sanitize(log.label)}.${format}`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err.message || 'Download failed');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return createPortal(
@@ -105,30 +62,36 @@ export default function Logs({
           <div>
             <h2 className="text-xl font-bold text-gray-900 mb-1">Logs</h2>
             <div className="text-xs text-gray-400 mb-0.5">
-              {log?.label || 'Log 1: 10/11/2026'}
+              {log.label || 'Log'}
             </div>
             <div className="flex items-center space-x-2 text-sm">
-              <span className="font-bold text-gray-900">{log?.course || 'BSIT 4C'}</span>
-              <span className="text-gray-600">{log?.subject || 'IT-ELEC 3'}</span>
-              <span className="text-gray-600">{log?.code || '124897'}</span>
+              {fieldValues.map((v, i) => (
+                <span
+                  key={i}
+                  className={i === 0 ? 'font-bold text-gray-900' : 'text-gray-600'}
+                >
+                  {v}
+                </span>
+              ))}
             </div>
           </div>
 
           <div className="flex items-center gap-6">
-            {/* Download Logs As Section */}
             <div className="flex items-center gap-3">
               <span className="text-sm font-semibold text-gray-700">Download Logs as</span>
               <button
                 type="button"
-                onClick={handleDownloadCSV}
-                className="border-2 border-blue-600 text-blue-600 hover:bg-blue-50 rounded-full px-5 py-1.5 text-sm font-medium transition cursor-pointer"
+                onClick={() => handleDownload('csv')}
+                disabled={busy}
+                className="border-2 border-blue-600 text-blue-600 hover:bg-blue-50 rounded-full px-5 py-1.5 text-sm font-medium transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 CSV
               </button>
               <button
                 type="button"
-                onClick={handleDownloadPDF}
-                className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-5 py-1.5 text-sm font-medium transition shadow-xs cursor-pointer"
+                onClick={() => handleDownload('pdf')}
+                disabled={busy}
+                className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-5 py-1.5 text-sm font-medium transition shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 PDF
               </button>
@@ -145,32 +108,32 @@ export default function Logs({
           </div>
         </div>
 
+        {error && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
         {/* Table Content */}
         <div className="mt-6 overflow-x-auto">
           <table className="w-full text-center border-collapse">
             <thead>
               <tr className="border-b border-gray-200">
-                <th className="py-3 px-4 font-semibold text-gray-700 text-sm">Date</th>
-                <th className="py-3 px-4 font-semibold text-gray-700 text-sm">Time Stamp</th>
-                <th className="py-3 px-4 font-semibold text-gray-700 text-sm">Status</th>
-                <th className="py-3 px-4 font-semibold text-gray-700 text-sm">First Name</th>
-                <th className="py-3 px-4 font-semibold text-gray-700 text-sm">Last Name</th>
-                <th className="py-3 px-4 font-semibold text-gray-700 text-sm">Section</th>
-                <th className="py-3 px-4 font-semibold text-gray-700 text-sm">Subject</th>
-                <th className="py-3 px-4 font-semibold text-gray-700 text-sm">EDP Code</th>
+                {columns.map((col, i) => (
+                  <th key={i} className="py-3 px-4 font-semibold text-gray-700 text-sm">
+                    {col}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {entries.map((entry, idx) => (
-                <tr key={idx} className="hover:bg-gray-50/80 transition-colors">
-                  <td className="py-3.5 px-4 text-sm text-gray-700">{entry.date}</td>
-                  <td className="py-3.5 px-4 text-sm text-gray-700">{entry.timestamp}</td>
-                  <td className="py-3.5 px-4 text-sm text-gray-700">{entry.status}</td>
-                  <td className="py-3.5 px-4 text-sm text-gray-700">{entry.firstName}</td>
-                  <td className="py-3.5 px-4 text-sm text-gray-700">{entry.lastName}</td>
-                  <td className="py-3.5 px-4 text-sm text-gray-700">{entry.section}</td>
-                  <td className="py-3.5 px-4 text-sm text-gray-700">{entry.subject}</td>
-                  <td className="py-3.5 px-4 text-sm text-gray-700">{entry.code}</td>
+              {rows.map((row, ri) => (
+                <tr key={ri} className="hover:bg-gray-50/80 transition-colors">
+                  {row.map((cell, ci) => (
+                    <td key={ci} className="py-3.5 px-4 text-sm text-gray-700">
+                      {cell}
+                    </td>
+                  ))}
                 </tr>
               ))}
             </tbody>

@@ -2,6 +2,7 @@ import React, { useState, forwardRef, useImperativeHandle } from 'react';
 import { createPortal } from 'react-dom';
 import { Cast, X, Plus } from 'lucide-react';
 import Logs from './Logs';
+import { loadLogs } from '../util/logStore.js';
 
 const cleanUserInputs = (inputs = []) =>
   inputs.map(v => v.trim()).filter(Boolean);
@@ -16,35 +17,38 @@ const findDuplicate = (labels) => {
   return null;
 };
 
+const DEFAULT_FIELDS = [
+  { name: 'Section', value: 'BSIT 4C' },
+  { name: 'Subject', value: 'IT-ELEC 3' },
+  { name: 'EDP Code', value: '1234567' },
+];
+
+const copyFields = (fields = []) => fields.map(f => ({ ...f }));
+
+const cleanFields = (fields = []) =>
+  fields
+    .map(f => ({ name: f.name.trim(), value: f.value.trim() }))
+    .filter(f => f.name);
+
 const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => {} }, ref) {
-  const [rooms, setRooms] = useState([
-    { 
-      id: 1, 
-      label: 'Room 1', 
-      course: 'BSIT 4C', 
-      subject: 'IT-ELEC 3', 
-      code: '1234567',
+    const [rooms, setRooms] = useState([
+    {
+      id: 1,
+      label: 'Room 1',
       roomSize: '51',
-      fields: ['Section', 'Subject', 'EDP Code'],
+      fields: copyFields(DEFAULT_FIELDS),
       userInputs: ['First Name', 'Last Name']
     },
-    { 
-      id: 2, 
-      label: 'Room 2', 
-      course: 'BSIT 4C', 
-      subject: 'IT-ELEC 3', 
-      code: '1234567',
+    {
+      id: 2,
+      label: 'Room 2',
       roomSize: '51',
-      fields: ['Section', 'Subject', 'EDP Code'],
+      fields: copyFields(DEFAULT_FIELDS),
       userInputs: ['First Name', 'Last Name']
     },
   ]);
   
-  const [logs, setLogs] = useState([
-    { id: 1, label: 'Log 1: 10/11/2026', course: 'BSIT 4C', subject: 'IT-ELEC 3', code: '124897' },
-    { id: 2, label: 'Log 2: 10/11/2026', course: 'BSIT 4C', subject: 'IT-ELEC 3', code: '124897' },
-    { id: 3, label: 'Log 3: 10/11/2026', course: 'BSIT 4C', subject: 'IT-ELEC 3', code: '124897' },
-  ]);
+  const [logs] = useState(loadLogs);
 
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -60,7 +64,7 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
     setSelectedRoom(room);
     setFormData({ 
       ...room,
-      fields: [...(room.fields || [])],
+      fields: copyFields(room.fields),
       userInputs: [...(room.userInputs || [])]
     });
     setIsCustomizing(false);
@@ -73,18 +77,15 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
     const newRoom = {
       id: newId,
       label: `Room ${newId}`,
-      course: 'BSIT 4C',
-      subject: 'IT-ELEC 3',
-      code: '1234567',
       roomSize: '51',
-      fields: ['Section', 'Subject', 'EDP Code'],
+      fields: copyFields(DEFAULT_FIELDS),
       userInputs: ['First Name', 'Last Name']
     };
     setRooms(prev => [...prev, newRoom]);
     setSelectedRoom(newRoom);
     setFormData({ 
       ...newRoom,
-      fields: [...newRoom.fields],
+      fields: copyFields(newRoom.fields),
       userInputs: [...newRoom.userInputs]
     });
     setIsCustomizing(true);
@@ -98,7 +99,7 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
   const handleAddField = () => {
     setFormData(prev => ({
       ...prev,
-      fields: [...(prev.fields || []), '']
+      fields: [...(prev.fields || []), { name: '', value: '' }]
     }));
   };
 
@@ -109,10 +110,10 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
     }));
   };
 
-  const handleFieldChange = (index, value) => {
+  const handleFieldChange = (index, key, value) => {
     setFormData(prev => {
       const newFields = [...(prev.fields || [])];
-      newFields[index] = value;
+      newFields[index] = { ...newFields[index], [key]: value };
       return { ...prev, fields: newFields };
     });
   };
@@ -141,13 +142,29 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
 
   const handleSaveCustomization = () => {
     const userInputs = cleanUserInputs(formData.userInputs);
-    const dup = findDuplicate(userInputs);
-    if (dup) {
-      setInputError(`"${dup}" is used more than once in User Inputs.`);
+    const fields = cleanFields(formData.fields);
+
+    const dupInput = findDuplicate(userInputs);
+    if (dupInput) {
+      setInputError(`"${dupInput}" is used more than once in User Inputs.`);
       return;
     }
+    const dupField = findDuplicate(fields.map(f => f.name));
+    if (dupField) {
+      setInputError(`"${dupField}" is used more than once in Fields.`);
+      return;
+    }
+    if (userInputs.length > 5) {
+      setInputError('User Inputs allow at most 5 entries.');
+      return;
+    }
+    if (fields.length > 6) {
+      setInputError('Fields allow at most 6 entries.');
+      return;
+    }
+
     setInputError('');
-    const saved = { ...formData, userInputs };
+    const saved = { ...formData, userInputs, fields };
     setRooms(prev => prev.map(r => r.id === selectedRoom.id ? saved : r));
     setSelectedRoom(saved);
     setIsCustomizing(false);
@@ -159,7 +176,10 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
       const res = await fetch('/room-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_inputs: userInputs }),
+        body: JSON.stringify({
+          user_inputs: userInputs,
+          fields: cleanFields(selectedRoom.fields),
+        }),
       });
       if (!res.ok) throw new Error();
     } catch {
@@ -206,9 +226,11 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
                 {room.label}
               </div>
               <div className="flex items-center space-x-2 text-sm">
-                <span className="font-bold text-gray-900">{room.course}</span>
-                <span className="text-gray-600">{room.subject}</span>
-                <span className="text-gray-600">{room.code}</span>
+                {(room.fields || []).map((f, i) => (
+                  <span key={i} className={i === 0 ? 'font-bold text-gray-900' : 'text-gray-600'}>
+                    {f.value}
+                  </span>
+                ))}
               </div>
             </div>
           ))}
@@ -222,8 +244,11 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
         </div>
         
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          {logs.length === 0 && (
+            <p className="p-3 text-sm text-gray-400">No saved logs yet.</p>
+          )}
           {logs.map((log) => (
-            <div 
+            <div
               key={log.id}
               onClick={() => {
                 setSelectedLog(log);
@@ -235,9 +260,11 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
                 {log.label}
               </div>
               <div className="flex items-center space-x-2 text-sm">
-                <span className="font-bold text-gray-900">{log.course}</span>
-                <span className="text-gray-600">{log.subject}</span>
-                <span className="text-gray-600">{log.code}</span>
+                {(log.fieldValues || []).filter(Boolean).map((v, i) => (
+                  <span key={i} className={i === 0 ? 'font-bold text-gray-900' : 'text-gray-600'}>
+                    {v}
+                  </span>
+                ))}
               </div>
             </div>
           ))}
@@ -333,8 +360,8 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                     {formData.fields?.map((field, idx) => (
-                      <div key={idx} className="flex flex-col">
-                        <div className="flex justify-between items-center text-xs text-gray-500 mb-1 px-1">
+                      <div key={idx} className="flex flex-col gap-2">
+                        <div className="flex justify-between items-center text-xs text-gray-500 px-1">
                           <span>Field Name</span>
                           <button
                             type="button"
@@ -344,22 +371,22 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
                             Remove
                           </button>
                         </div>
-                        <div className="relative">
-                          <input
-                            type="text"
-                            value={field}
-                            onChange={(e) => handleFieldChange(idx, e.target.value)}
-                            placeholder="Field Name"
-                            className="w-full border border-gray-300 rounded-xl py-2 px-3 pr-8 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-xs"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveField(idx)}
-                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-blue-600 hover:text-blue-800 transition"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
+                        <input
+                          type="text"
+                          value={field.name}
+                          maxLength={30}
+                          onChange={(e) => handleFieldChange(idx, 'name', e.target.value)}
+                          placeholder="Field Name"
+                          className="w-full border border-gray-300 rounded-xl py-2 px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-xs"
+                        />
+                        <input
+                          type="text"
+                          value={field.value}
+                          maxLength={50}
+                          onChange={(e) => handleFieldChange(idx, 'value', e.target.value)}
+                          placeholder="Value"
+                          className="w-full border border-gray-300 rounded-xl py-2 px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-xs"
+                        />
                       </div>
                     ))}
                   </div>
@@ -429,7 +456,7 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
                   <h3 className="font-bold text-gray-800 text-base mb-2">Fields</h3>
                   <p className="text-gray-600 text-sm">
                     {selectedRoom.fields && selectedRoom.fields.length > 0
-                      ? selectedRoom.fields.filter(Boolean).join(', ')
+                      ? selectedRoom.fields.map(f => `${f.name}: ${f.value || '—'}`).join(', ')
                       : 'Not Set (Default logs)'}
                   </p>
                 </div>

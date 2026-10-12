@@ -76,6 +76,14 @@ http {{
         location /room-config {{
             proxy_pass http://127.0.0.1:5000;
         }}
+
+        location /logs/snapshot {{
+            proxy_pass http://127.0.0.1:5000;
+        }}
+
+        location /logs/render {{
+            proxy_pass http://127.0.0.1:5000;
+        }}
     }}
 }}
 """

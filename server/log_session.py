@@ -7,11 +7,33 @@ known_names: dict[str, str] = {}
 event_log: list[dict] = []
 known_attributes: dict[str, dict] = {}
 
+def _split_time(iso: str) -> tuple[str, str]:
+    dt = datetime.fromisoformat(iso).astimezone()
+    return dt.strftime("%m/%d/%Y"), dt.strftime("%I:%M %p")
+
 def _fit(pdf, text, width):
     text = str(text).encode("latin-1", "replace").decode("latin-1")
     while text and pdf.get_string_width(text) > width - 2:
         text = text[:-1]
     return text
+
+def _build_table(labels=None, fields=None):
+    labels = labels or []
+    fields = fields or []
+    columns = [
+        "Date", "Time Stamp", "Status",
+        *(labels or ["Name"]),
+        *[f["name"] for f in fields],
+    ]
+    field_values = [f["value"] for f in fields]
+    rows = []
+    for e in event_log:
+        date, time = _split_time(e["timestamp"])
+        attrs = e.get("attributes", {})
+        who = [attrs.get(l, "") for l in labels] if labels else [e["name"]]
+        status = "Entered" if e["event"] == "joined" else "Left"
+        rows.append([date, time, status, *who, *field_values])
+    return columns, rows
 
 def record_events(current_participants: list[dict]) -> None:
     global known_identities
@@ -53,36 +75,55 @@ def reset() -> None:
     known_attributes.clear()
     event_log.clear()
 
-def to_csv_bytes(labels: list[str] | None = None) -> str:
-    labels = labels or []
+def snapshot(labels=None, fields=None) -> dict:
+    columns, rows = _build_table(labels, fields)
+    return {
+        "columns": columns,
+        "rows": rows,
+        "field_values": [f["value"] for f in (fields or [])],
+    }
+
+def csv_from_table(columns, rows) -> str:
     buf = io.StringIO()
-    writer = csv.DictWriter(
-        buf, fieldnames=["timestamp", *labels, "name", "identity", "event"]
-    )
-    writer.writeheader()
-    for e in event_log:
-        row = {
-            "timestamp": e["timestamp"],
-            "name": e["name"],
-            "identity": e["identity"],
-            "event": e["event"],
-        }
-        for label in labels:
-            row[label] = e.get("attributes", {}).get(label, "")
-        writer.writerow(row)
+    writer = csv.writer(buf)
+    writer.writerow(columns)
+    writer.writerows(rows)
     return buf.getvalue()
 
-def to_pdf_bytes() -> bytes:
+def pdf_from_table(columns, rows) -> bytes:
     from fpdf import FPDF
-    pdf = FPDF()
+
+    pdf = FPDF(orientation="L")
     pdf.add_page()
-    pdf.set_font("Helvetica", size=12)
-    pdf.cell(0, 10, "FocalPoint Session Log", ln=True)
-    pdf.set_font("Helvetica", size=9)
-    for e in event_log:
-        pdf.cell(0, 6, f'{e["timestamp"]}  {e["name"]}  {e["event"]}', ln=True)
+    usable = pdf.w - 2 * pdf.l_margin
+
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.cell(0, 10, "FocalPoint Session Log")
+    pdf.ln(12)
+
+    fixed = [22, 22, 20]
+    rest = (usable - sum(fixed)) / max(len(columns) - 3, 1)
+    widths = fixed + [rest] * (len(columns) - 3)
+
+    pdf.set_font("Helvetica", "B", 8)
+    pdf.set_fill_color(230, 236, 250)
+    for title, w in zip(columns, widths):
+        pdf.cell(w, 7, _fit(pdf, title, w), border=1, fill=True)
+    pdf.ln(7)
+
+    pdf.set_font("Helvetica", size=8)
+    for row in rows:
+        for text, w in zip(row, widths):
+            pdf.cell(w, 6, _fit(pdf, text, w), border=1)
+        pdf.ln(6)
 
     output = pdf.output()
     if isinstance(output, str):
         return output.encode("latin-1")
     return bytes(output)
+
+def to_csv_bytes(labels=None, fields=None) -> str:
+    return csv_from_table(*_build_table(labels, fields))
+
+def to_pdf_bytes(labels=None, fields=None) -> bytes:
+    return pdf_from_table(*_build_table(labels, fields))

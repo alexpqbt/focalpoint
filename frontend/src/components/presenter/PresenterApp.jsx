@@ -11,6 +11,7 @@ import { toCanvas } from 'qrcode';
 
 import { initConfig, getServerIP, getLivekitURI, VIDEO_CFG } from '../config.js';
 import '../util/polyfill.js';
+import { saveLog } from '../util/logStore.js';
 
 export default function PresenterApp() {
   const [screen, setScreen] = useState('splash');
@@ -145,10 +146,17 @@ export default function PresenterApp() {
   }, [activeModal, viewerURL]);
 
   const handleEndSession = useCallback(async () => {
+    try {
+      await fetchParticipants(); // records any last joins or leaves
+      const res = await fetch('/logs/snapshot');
+      if (res.ok) saveLog(await res.json());
+    } catch (err) {
+      console.error('Failed to save session log:', err);
+    }
     await stopSharing();
-    setMessages([]);        // clear chat
+    setMessages([]);
     setScreen('splash');
-  }, [stopSharing]);
+  }, [fetchParticipants, stopSharing]);
 
   const handleRemoveViewer = useCallback(async (identity) => {
     const res = await fetch(`/participants/${encodeURIComponent(identity)}/remove`, {
