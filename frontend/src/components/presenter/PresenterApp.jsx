@@ -29,6 +29,7 @@ export default function PresenterApp() {
   const pollRef = useRef(null);
   const previewRef = useRef(null);
   const qrRef = useRef(null);
+  const roomsRef = useRef(null);
 
   useEffect(() => {
     initConfig().then(() => setReady(true));
@@ -146,7 +147,7 @@ export default function PresenterApp() {
   const handleEndSession = useCallback(async () => {
     await stopSharing();
     setMessages([]);        // clear chat
-    setScreen('ended');
+    setScreen('splash');
   }, [stopSharing]);
 
   const handleRemoveViewer = useCallback(async (identity) => {
@@ -184,15 +185,19 @@ export default function PresenterApp() {
   }, [stopPolling]);
 
   if (!ready) {
-    return <div className="p-8 text-red-700">Loading…</div>;
+    return <div className="p-8 text-blue-700">Loading…</div>;
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:24px_24px] flex flex-col justify-between text-red-700 font-sans select-none">
+    <div className="min-h-screen bg-slate-50 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:24px_24px] flex flex-col justify-between text-blue-700 font-sans select-none">
       <Header currentScreen={screen} />
 
       {screen === 'splash' && (
-        <SplashScreen onShareScreen={startSharing} />
+        <SplashScreen
+          roomsRef={roomsRef}
+          onShareScreen={() => roomsRef.current?.handleAddRoom()}
+          onStartSharing={startSharing}
+        />
       )}
 
       {screen === 'dashboard' && (

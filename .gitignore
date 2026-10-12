@@ -37,3 +37,4 @@ node_modules/
 
 !livekit.yaml.example
 !.env.example
+.aider*
