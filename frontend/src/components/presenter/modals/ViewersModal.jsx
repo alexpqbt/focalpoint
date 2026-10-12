@@ -6,7 +6,6 @@ export default function ViewersModal({
   onRemoveViewer = () => {},
   onClose = () => {},
 }) {
-  console.log(viewers)
   const [labels, setLabels] = useState([]);
 
   useEffect(() => {
