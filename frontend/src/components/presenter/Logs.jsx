@@ -54,11 +54,11 @@ export default function Logs({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl border border-gray-100 max-w-5xl w-full p-8 relative animate-in fade-in zoom-in-95 duration-150 overflow-hidden text-left"
+        className="bg-white rounded-2xl shadow-2xl border border-gray-100 max-w-5xl w-full max-h-[90vh] flex flex-col p-8 relative animate-in fade-in zoom-in-95 duration-150 overflow-hidden text-left"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Top Header */}
-        <div className="flex items-start justify-between pb-6 border-b border-gray-100">
+        <div className="flex items-start justify-between pb-6 border-b border-gray-100 shrink-0">
           <div>
             <h2 className="text-xl font-bold text-gray-900 mb-1">Logs</h2>
             <div className="text-xs text-gray-400 mb-0.5">
@@ -109,15 +109,15 @@ export default function Logs({
         </div>
 
         {error && (
-          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+          <div className="mt-4 shrink-0 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
             {error}
           </div>
         )}
 
         {/* Table Content */}
-        <div className="mt-6 overflow-x-auto">
+        <div className="mt-6 flex-1 min-h-0 overflow-auto">
           <table className="w-full text-center border-collapse">
-            <thead>
+            <thead className="sticky top-0 bg-white z-10">
               <tr className="border-b border-gray-200">
                 {columns.map((col, i) => (
                   <th key={i} className="py-3 px-4 font-semibold text-gray-700 text-sm">
