@@ -38,8 +38,10 @@ download buttons.
 
 ## How It Works
 
-1. The host runs `launcher.py`. It starts every service and opens the
-   host page automatically.
+1. The host starts Focalpoint by double-clicking `Focalpoint.exe` (packaged
+   build) or by running `launcher.py` (development). A small window appears
+   and starts every service. When it reads **The app is running.**, the host
+   page opens automatically in the default browser.
 2. The host presses **Add Room**, sets the **User Inputs** and **Session
    Fields**, and presses **Save Customization**. Saved rooms are kept in the
    database and reused in later sessions.
@@ -56,9 +58,11 @@ download buttons.
    any time.
 9. When the host presses **End Session**, the log is saved to the database
    and listed under **Logs** in the sidebar.
+10. When the class is over, the host closes the Focalpoint window, which stops
+    every service.
 
-No app installation required. No internet connection required. Any modern
-mobile browser works.
+No app installation required for students. No internet connection required.
+Any modern mobile browser works.
 
 ## Architecture
 
@@ -75,9 +79,16 @@ Host sees message as an on-screen notification
 FastAPI issues LiveKit access tokens, holds the current room config
 (`/room-config`), polls participants (`/participants`), renders logs
 (`/logs/snapshot`, `/logs/render`), and stores saved rooms and logs in SQLite
-(`/rooms`, `/logs/saved`). Nginx serves the React build and reverse-proxies
-API calls. All traffic stays on the local network — no internet, no STUN/TURN
-servers.
+(`/rooms`, `/logs/saved`). FastAPI listens on `127.0.0.1:5000` only. Nginx
+serves the React build on port 8080 and reverse-proxies API calls, so it is
+the only web entry point from the network. All traffic stays on the local
+network — no internet, no STUN/TURN servers.
+
+The launcher runs FastAPI inside its own process (uvicorn in a thread) and
+starts LiveKit and Nginx as child processes. On Windows, all children are
+placed in a Job Object, so they are terminated by the operating system if the
+launcher exits for any reason, including a crash or being killed from Task
+Manager.
 
 ## Tech Stack
 
@@ -92,20 +103,38 @@ servers.
 | Frontend | React + React Router + Tailwind (Vite dev server) |
 | Viewer/Host Client | React components using the LiveKit JS SDK |
 | Log export | Server-side CSV and PDF (fpdf2) |
-| Process orchestration | `launcher.py` |
+| Process orchestration | `launcher.py` (Tkinter status window, Windows Job Object) |
+| Packaging | PyInstaller (onedir), driven by `build.py` |
+
+## Platform
+
+Windows only. The launcher uses Windows Job Objects, and the bundled LiveKit
+and Nginx binaries are the Windows builds.
 
 ## Prerequisites
 
-- [uv](https://docs.astral.sh/uv/) for the Python token/admin server
-- Node.js and pnpm for the frontend (dev mode; the build is served by Nginx)
-- LiveKit server binary (`livekit-server.exe`) and Nginx (`nginx.exe`) for Windows,
-  placed in `livekit/` and `nginx/` per the folder structure below
+**To run the packaged build:** nothing. No Python, uv, or Node is required on
+the host machine.
+
+**To develop or build from source:**
+
+- [uv](https://docs.astral.sh/uv/) for the Python server
+- Node.js and pnpm for the frontend
+- LiveKit server binary (`livekit-server.exe`) and Nginx (`nginx.exe`) for
+  Windows, placed in `livekit/` and `nginx/` per the folder structure below
+- Tkinter, which ships with the standard Python installer. Check with
+  `uv run --project server python -c "import tkinter"`.
 
 ## Folder Structure
+
+Source tree:
 
 ```
 focalpoint/
 ├── .env.example
+├── .gitignore
+├── build.py
+├── favicon.ico
 ├── launcher.py
 ├── README.md
 ├── LICENSE
@@ -126,11 +155,12 @@ focalpoint/
 │   └── vite.config.js
 ├── nginx/
 │   ├── conf/
-│   │   └── nginx.conf
+│   │   ├── mime.types
+│   │   └── nginx.conf         ← regenerated at every launch
 │   └── nginx.exe
 ├── livekit/
 │   ├── livekit-server.exe
-│   └── livekit.yaml.example
+│   └── livekit.yaml           ← generated at every launch
 └── server/
     ├── db.py
     ├── focalpoint.db          ← generated at first launch
@@ -138,11 +168,30 @@ focalpoint/
     ├── log_session.py
     ├── main.py
     ├── networking.py
+    ├── paths.py               ← shared base paths (source and packaged)
     ├── pyproject.toml
     └── uv.lock
 ```
 
-## Setup
+Packaged build (`dist/Focalpoint/`):
+
+```
+Focalpoint/
+├── Focalpoint.exe
+├── _internal/                 ← created by PyInstaller
+├── frontend/dist/             ← copied by build.py
+├── livekit/livekit-server.exe ← copied by build.py
+├── nginx/
+│   ├── nginx.exe              ← copied by build.py
+│   ├── conf/                  ← copied by build.py
+│   ├── logs/                  ← created at launch
+│   └── temp/                  ← created at launch
+├── server/focalpoint.db       ← created at first launch
+├── .env                       ← created at first launch
+└── focalpoint.log             ← created at first launch
+```
+
+## Setup (from source)
 
 ### 1. Clone the repository
 
@@ -151,13 +200,15 @@ git clone https://github.com/alexpqbt/focalpoint.git
 cd focalpoint
 ```
 
-### 2. Configure environment variables
+### 2. Environment variables (optional)
+
+The launcher creates `.env` on first run with randomly generated LiveKit
+credentials and `LIVEKIT_ROOM_NAME=classroom`. You only need to create it
+yourself to use fixed values:
 
 ```bash
 cp .env.example .env
 ```
-
-Open `.env` and fill in:
 
 ```env
 LIVEKIT_API_KEY=your_api_key_here
@@ -192,24 +243,69 @@ server on port 5000. Both modes are supported and share the same database.
 
 ### 5. Run the launcher
 
+From the project root:
+
 ```bash
-uv run python launcher.py
+uv run --project server python launcher.py
 ```
 
-This detects the machine's local IP, generates `livekit.yaml` and
+The Python project lives in `server/`, so `--project server` is required when
+running from the root. Without it, uv does not find the dependencies.
+
+The launcher detects the machine's local IP, generates `livekit.yaml` and
 `nginx.conf`, starts LiveKit, FastAPI, and Nginx in order — waiting for each
 to become reachable before starting the next — and opens the host page
 automatically. The database file `server/focalpoint.db` is created on first
-launch.
+launch. Output is printed to the terminal when running from source.
 
 No manual IP editing in any file. No certificate generation. No per-machine
 config files to keep in sync.
+
+## Building the Executable
+
+From the project root, with `uv`, `pnpm`, and the LiveKit and Nginx binaries
+in place:
+
+```bash
+python build.py
+```
+
+`build.py` uses only the standard library and calls `uv` and `pnpm` itself. It
+runs these steps and stops at the first failure:
+
+1. Checks that `launcher.py`, `livekit-server.exe`, `nginx.exe`,
+   `nginx/conf/mime.types`, and `favicon.ico` exist.
+2. Builds the frontend with `pnpm build`.
+3. Builds `dist/Focalpoint/Focalpoint.exe` with PyInstaller in onedir mode.
+4. Copies `livekit-server.exe`, `nginx.exe`, `nginx/conf/`, and
+   `frontend/dist/` next to the executable.
+
+Options:
+
+| Flag | Effect |
+|---|---|
+| `--windowed` | Builds without a console window. Use for the release build. |
+| `--skip-frontend` | Skips `pnpm build` and reuses the current `frontend/dist`. |
+
+The default build keeps a console window open, which is useful while
+debugging. PyInstaller recreates `dist/Focalpoint/` on every build, so the
+external files are copied again each time. `build/`, `dist/`, and
+`Focalpoint.spec` are build output and are excluded from version control.
+
+The build is onedir on purpose. A onefile build unpacks itself to a temporary
+folder on every launch, which would break the persistent database and the
+Nginx working directory.
+
+To distribute, copy the whole `dist/Focalpoint/` folder, not only the `.exe`.
 
 ## Usage
 
 ### Host
 
-1. `launcher.py` opens the host page automatically at `http://localhost:8080/`.
+1. Start Focalpoint. A small window appears with the status **Starting
+   services...** and then **The app is running.** The host page opens
+   automatically at `http://localhost:8080/`. The **Open host page** button
+   reopens it if the tab was closed.
 2. Press **Add Room**. The new room is a draft and is saved only when you
    press **Save Customization**; closing the modal discards it. Set:
    - **Room size** (1 to 51).
@@ -230,6 +326,8 @@ config files to keep in sync.
 8. Press **End Session** when done. The log is saved and listed under **Logs**
    in the sidebar. Click an entry to open its table and download it as CSV or
    PDF. Sessions in which no viewer joined are not saved.
+9. Close the Focalpoint window to stop the system. Press **End Session**
+   first, because closing the window discards a session that was not ended.
 
 ### Students
 
@@ -246,6 +344,22 @@ config files to keep in sync.
 Students must open the viewer page after the host presses **Share Screen**. A
 page that was already open keeps the old join form until it is reloaded.
 
+## First Run on a New Machine
+
+- **Windows Firewall.** The first launch triggers a firewall prompt. Allow
+  access on **private networks**, or students' devices cannot connect. If the
+  prompt was dismissed, allow `Focalpoint.exe`, `livekit-server.exe`, and
+  `nginx.exe` manually. The ports in use are TCP 8080 (web), TCP 7880 and
+  7881 (LiveKit signaling and TCP media fallback), and UDP 50000 to 60000
+  (LiveKit media). Video fails silently when the UDP range is blocked.
+- **Install location.** The app writes its database, `.env`, generated
+  configs, and logs inside its own folder. Place the folder somewhere the
+  user can write to, such as Documents or the desktop. `C:\Program Files`
+  is not writable for standard users and breaks startup.
+- **Antivirus.** The executable is not code-signed, and unsigned PyInstaller
+  executables are sometimes flagged. If this happens, add an exception for the
+  folder.
+
 ## Session Logs
 
 While a session runs, the server records each viewer's join and leave, along
@@ -260,12 +374,15 @@ saved table, so past sessions download exactly like current ones.
 
 ## Data Storage and Privacy
 
-All data is stored on the host machine in `server/focalpoint.db` (SQLite).
-It contains:
+All data is stored on the host machine, inside the Focalpoint folder:
 
-- Saved rooms: class details and join form settings.
-- Saved session logs, including **students' names and the answers they
-  entered**.
+- `server/focalpoint.db` (SQLite): saved rooms (class details and join form
+  settings) and saved session logs, including **students' names and the
+  answers they entered**.
+- `.env`: the generated LiveKit key and secret.
+- `focalpoint.log` (packaged build only): service output and errors.
+- `nginx/logs/`: Nginx access and error logs, which include the IP addresses
+  of connected devices.
 
 Nothing is sent to the internet. The database is not encrypted and the system
 has no login, so anyone with access to the host machine or its files can read
@@ -276,24 +393,61 @@ shared.
 
 ## Stopping the System
 
-Press `Ctrl+C` in the terminal running `launcher.py`. It stops Nginx via its
-documented shutdown command and terminates LiveKit and FastAPI.
+- **Packaged build or launcher window:** close the Focalpoint window. Shutdown
+  can take a few seconds while Nginx and LiveKit exit, and the window may
+  appear frozen during that time.
+- **Launcher from source:** close the window. Ctrl+C in the terminal is not
+  a reliable way to stop it.
+
+The launcher stops Nginx with its documented shutdown command, stops FastAPI,
+and terminates LiveKit. If the launcher is killed without cleaning up, such as
+by Task Manager or a crash, Windows terminates its child processes
+automatically, and the ports are released.
+
+Only one copy can run at a time. Starting a second copy shows "Focalpoint is
+already running" and exits.
 
 ## Moving to a New Machine
+
+**Packaged build:**
+
+1. Copy the whole `Focalpoint` folder to the new machine.
+2. Optionally copy `server/focalpoint.db` from the old folder to bring saved
+   rooms and logs along.
+3. Run `Focalpoint.exe` and allow the firewall prompt.
+
+**From source:**
 
 1. Copy the project folder to the new machine.
 2. Install `uv`, run `uv sync` inside `server/`.
 3. Install Node.js, run `pnpm install && pnpm build` inside `frontend/`.
 4. Optionally copy `server/focalpoint.db` to bring saved rooms and logs along.
-5. Run `uv run python launcher.py`.
+5. Run `uv run --project server python launcher.py`.
 
 The local IP is detected automatically at launch — no config files need editing.
+The source build and the packaged build keep separate databases.
 
 ## Troubleshooting
+
+**Nothing happens when starting `Focalpoint.exe`, or the window closes
+immediately**
+Open `focalpoint.log` in the Focalpoint folder. The traceback is written
+there. Startup failures also appear in an error dialog. If you are
+debugging, build without `--windowed` and run the executable from a terminal.
+
+**"Focalpoint is already running"**
+Another copy is open, possibly minimized. Close it first. If no window is
+visible, end `Focalpoint.exe` in Task Manager.
+
+**A service did not become ready on port 5000, 7880, or 8080**
+Another program is using the port, or a previous instance was not stopped.
+Check with `netstat -ano | findstr LISTENING | findstr ":5000 :7880 :8080"`.
+For Nginx, read `nginx/logs/error.log`.
 
 **Students cannot reach the host page**
 Check that the router does not have client isolation enabled. This setting
 prevents devices on the same network from talking to each other. Turn it off.
+Then check Windows Firewall as described in **First Run on a New Machine**.
 
 **Token server / `/participants` returns 401 or 403**
 The bearer token sent to the endpoint is missing, invalid, or lacks the
@@ -305,13 +459,15 @@ endpoints are host-only. Confirm the host browser is on the same machine as
 FastAPI and is opened at `localhost`, not the LAN IP.
 
 **Video or messaging is not working**
-Make sure `launcher.py` reports all three services as ready before opening
-the browser. Check the browser console (not just server logs) — frontend
-errors are not currently surfaced to the terminal.
+Wait for the window to read **The app is running.** before opening the
+browser. Check the browser console (not just service logs) — frontend
+errors are not surfaced anywhere else.
 
 **Video is not appearing on student devices**
 Confirm the host has selected a window and the stream is active.
-Students must tap **Connect** after the host has started sharing.
+Students must tap **Connect** after the host has started sharing. If the host
+sees the stream but students do not, the UDP range 50000 to 60000 is
+probably blocked by the firewall.
 
 **Students see the wrong join form**
 The viewer page was opened before the host pressed **Share Screen**, or the
@@ -325,16 +481,19 @@ then **Share Screen**.
 Open the browser console. The modal shows a red error box with the server's
 response. A 403 means the request didn't reach FastAPI as localhost. A 400
 means the table shape was rejected (too many columns, too many rows, or a
-row whose length doesn't match the column count).
+row whose length doesn't match the column count). A 500 in the packaged build
+means a module was missing from the bundle, and `focalpoint.log` names it.
 
 **Rooms or logs are missing from the sidebar**
 The list is loaded from `/rooms` and `/logs/saved`. Check the browser's
-Network tab for failed requests. If the server was run from a different
-folder or machine, it may be using a different `server/focalpoint.db`.
-A session in which no viewer joined is never saved as a log.
+Network tab for failed requests. The packaged build and the source build use
+different `server/focalpoint.db` files, and a copy of the folder started from a
+different location uses its own file. A session in which no viewer joined is
+never saved as a log.
 
 ## Known Limitations
 
+- **Windows only.**
 - **No message persistence.** Messages from students are shown once as a
   notification and are not stored or logged anywhere.
 - **No ban list.** Disconnecting a viewer clears their current connection
@@ -350,8 +509,9 @@ A session in which no viewer joined is never saved as a log.
 - **Join forms are fixed at share time.** Viewers who joined under older
   labels keep their old attributes in the participant list.
 - **The running session is held in memory.** It is written to the database
-  when the host presses **End Session**. Closing the browser or stopping the
-  launcher mid-session loses that session's log.
+  when the host presses **End Session**. Closing the Focalpoint window,
+  closing the browser, or stopping the launcher mid-session loses that
+  session's log.
 - **A `left` event is recorded only when the host polls `/participants`**
   (every 3.5 seconds). Viewers still connected when the session ends only
   get an Entered row.
@@ -362,6 +522,10 @@ A session in which no viewer joined is never saved as a log.
 - **Logs and rooms live on the host machine only.** Copy
   `server/focalpoint.db` to keep them when moving machines. There is no
   interface for deleting a saved log, and the database is not encrypted.
+- **`focalpoint.log` is never trimmed.** The packaged build appends to it on
+  every launch, so it grows over time. Delete it when it gets large.
+- **The executable is unsigned.** Antivirus software may flag it, and Windows
+  SmartScreen may show a warning on first run.
 - **Confirmed incompatible: iOS 12 and earlier (e.g. iPhone 6/6 Plus).**
   Plain HTTP and the LiveKit token endpoint work fine, but the WebSocket
   handshake to LiveKit's signaling server fails at the browser networking
@@ -377,6 +541,10 @@ See [LICENSE](LICENSE) for details.
 Any modifications to this project must also be released under GPL v3.0.
 Attribution to the original author is required.
 
+The packaged build also contains LiveKit and Nginx binaries, which have their
+own licenses. Include their license files in the distributed folder alongside
+`LICENSE`.
+
 ## Acknowledgements
 
 This project is built entirely on open source software:
@@ -386,6 +554,7 @@ This project is built entirely on open source software:
 - [FastAPI](https://fastapi.tiangolo.com) — Token and admin server framework
 - [SQLite](https://www.sqlite.org) — Local storage for rooms and logs
 - [uv](https://docs.astral.sh/uv/) — Python package and project management
+- [PyInstaller](https://pyinstaller.org) — Executable packaging
 - [pnpm](https://pnpm.io/) — Node package manager
 - [React](https://react.dev) — Frontend UI
 - [Vite](https://vite.dev) — Frontend build tool
