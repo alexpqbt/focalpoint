@@ -25,6 +25,9 @@ if FROZEN:
 else:
     CHILD_OUT = None
 
+if not FROZEN:
+    sys.path.insert(0, str(SERVER_DIR))
+
 QUIET = dict(
     creationflags=subprocess.CREATE_NO_WINDOW,
     stdin=subprocess.DEVNULL,
@@ -104,6 +107,10 @@ def wait_for_port(host, port, timeout=30, interval=0.3):
             time.sleep(interval)
     return False
 
+def resource_path(name):
+    # frozen: files added with --add-data live in sys._MEIPASS (_internal/)
+    root = Path(getattr(sys, "_MEIPASS", BASE))
+    return root / name
 
 # ---------- services ----------
 
@@ -194,6 +201,10 @@ def main():
     job = create_kill_on_close_job()
 
     root = tk.Tk()
+    try:
+        root.iconbitmap(default=str(resource_path("favicon.ico")))
+    except tk.TclError:
+        pass 
     root.title("Focalpoint")
     root.geometry("340x170")
     root.resizable(False, False)

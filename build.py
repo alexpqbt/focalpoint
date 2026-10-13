@@ -2,7 +2,7 @@
 
 Usage (from anywhere):
     python build.py                  # frontend + exe, console visible
-    python build.py --windowed       # no console window
+    python build.py --windowed       # with console window
     python build.py --skip-frontend  # reuse the existing frontend/dist
 """
 import argparse
@@ -55,10 +55,12 @@ def build_exe(windowed):
         tool("uv"), "run", "--project", "server", "pyinstaller", "launcher.py",
         "--name", "Focalpoint",
         "--onedir",
-        "--noconsole" if windowed else "--console",
+        "--console" if windowed else "--noconsole",
         "--noconfirm",
         "--paths", "server",
         "--collect-all", "fpdf",
+        "--icon", str(ROOT / "favicon.ico"),
+        "--add-data", f"{ROOT / 'favicon.ico'};.",
     ]
     for module in HIDDEN_IMPORTS:
         cmd += ["--hidden-import", module]
@@ -80,7 +82,7 @@ def copy_external_files():
 def main():
     parser = argparse.ArgumentParser(description="Build Focalpoint.")
     parser.add_argument("--windowed", action="store_true",
-                        help="build without a console window")
+                        help="build with a console window")
     parser.add_argument("--skip-frontend", action="store_true",
                         help="do not run pnpm build")
     args = parser.parse_args()
