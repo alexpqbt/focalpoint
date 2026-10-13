@@ -20,12 +20,12 @@ export default function ViewerApp() {
     initConfig().then(() => setReady(true));
   }, []);
 
-  const connect = useCallback(async (name) => {
+  const connect = useCallback(async (name, answers = {}) => {
     if (!ready) return;
     try {
       const identity = 'student-' + Math.random().toString(36).substring(2, 9);
       const token = await fetch(
-        `/token?role=student&identity=${identity}&name=${encodeURIComponent(name)}`
+        `/token?role=student&identity=${identity}&name=${encodeURIComponent(name)}&answers=${encodeURIComponent(JSON.stringify(answers))}`
       ).then((r) => r.text());
 
       const room = new Room();
@@ -109,7 +109,7 @@ export default function ViewerApp() {
     };
   }, []);
 
-  if (!ready) return <div className="p-8 text-red-700">Loading…</div>;
+  if (!ready) return <div className="p-8 text-blue-700">Loading…</div>;
 
   return (
     <div className="min-h-screen flex flex-col bg-black">

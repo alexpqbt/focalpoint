@@ -11,15 +11,15 @@ export default function ChatModal({
       onClick={onClose}
     >
       <div 
-        className="bg-white rounded-xl max-w-lg w-full shadow-2xl border border-red-100 overflow-hidden flex flex-col max-h-[80vh]"
+        className="bg-white rounded-xl max-w-lg w-full shadow-2xl border border-blue-100 overflow-hidden flex flex-col max-h-[80vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-red-100">
-          <h3 className="font-semibold text-red-700">Chat</h3>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-blue-100">
+          <h3 className="font-semibold text-blue-700">Chat</h3>
           <button 
             type="button"
             onClick={onClose} 
-            className="text-red-500 hover:text-red-700"
+            className="text-blue-500 hover:text-blue-700"
             aria-label="Close modal"
           >
             <X className="w-5 h-5" />
@@ -30,9 +30,9 @@ export default function ChatModal({
             <p className="text-center text-xs text-slate-400 py-6">No messages yet.</p>
           ) : (
             messages.map((msg, idx) => (
-              <div key={idx} className="border-b border-red-50 pb-2">
-                <p className="text-xs font-semibold text-red-900">{msg.name}</p>
-                <p className="text-sm text-red-600">{msg.text}</p>
+              <div key={idx} className="border-b border-blue-50 pb-2">
+                <p className="text-xs font-semibold text-blue-900">{msg.name}</p>
+                <p className="text-sm text-blue-600">{msg.text}</p>
               </div>
             ))
           )}

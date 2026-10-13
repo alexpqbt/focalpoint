@@ -3,7 +3,6 @@ import Header from '../common/Header';
 import Footer from '../common/Footer';
 import SplashScreen from './SplashScreen';
 import Dashboard from './Dashboard';
-import EndedScreen from './EndedScreen';
 import QrModal from './modals/QrModal';
 import ViewersModal from './modals/ViewersModal';
 import ChatModal from './modals/ChatModal';
@@ -12,12 +11,13 @@ import { toCanvas } from 'qrcode';
 
 import { initConfig, getServerIP, getLivekitURI, VIDEO_CFG } from '../config.js';
 import '../util/polyfill.js';
+import { saveLog } from '../util/logStore.js';
 
 export default function PresenterApp() {
   const [screen, setScreen] = useState('splash');
   const [activeModal, setActiveModal] = useState(null);
 
-  const [viewers, setViewers] = useState([]);       // array of { identity, name }
+  const [viewers, setViewers] = useState([]);
   const [messages, setMessages] = useState([]);
   const [viewerURL, setViewerURL] = useState('');
   const [isSharing, setIsSharing] = useState(false);
@@ -29,6 +29,7 @@ export default function PresenterApp() {
   const pollRef = useRef(null);
   const previewRef = useRef(null);
   const qrRef = useRef(null);
+  const roomsRef = useRef(null);
 
   useEffect(() => {
     initConfig().then(() => setReady(true));
@@ -50,6 +51,7 @@ export default function PresenterApp() {
     setViewers(participants.map(p => ({
       identity: p.identity,
       name: p.name || p.identity,
+      attributes: p.attributes || {},
     })));
   }, []);
 
@@ -136,18 +138,28 @@ export default function PresenterApp() {
 
   // render the QR code once the qr div and the URL are both ready
   useEffect(() => {
-  if (activeModal === 'qr' && qrRef.current && viewerURL) {
-    toCanvas(qrRef.current, viewerURL, { width: 256 }, (err) => {
+    if (activeModal === 'qr' && qrRef.current && viewerURL) {
+      // Calculate a size that is 80% of the smaller viewport dimension
+      const dynamicSize = Math.floor(Math.min(window.innerHeight, window.innerWidth) * 0.8);
+
+      toCanvas(qrRef.current, viewerURL, { width: dynamicSize }, (err) => {
         if (err) console.error('QR render failed:', err);
       });
     }
   }, [activeModal, viewerURL]);
 
   const handleEndSession = useCallback(async () => {
+    try {
+      await fetchParticipants(); // records any last joins or leaves
+      const res = await fetch('/logs/snapshot');
+      if (res.ok) await saveLog(await res.json());
+    } catch (err) {
+      console.error('Failed to save session log:', err);
+    }
     await stopSharing();
-    setMessages([]);        // clear chat
-    setScreen('ended');
-  }, [stopSharing]);
+    setMessages([]);
+    setScreen('splash');
+  }, [fetchParticipants, stopSharing]);
 
   const handleRemoveViewer = useCallback(async (identity) => {
     const res = await fetch(`/participants/${encodeURIComponent(identity)}/remove`, {
@@ -184,15 +196,19 @@ export default function PresenterApp() {
   }, [stopPolling]);
 
   if (!ready) {
-    return <div className="p-8 text-red-700">Loading…</div>;
+    return <div className="p-8 text-blue-700">Loading…</div>;
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:24px_24px] flex flex-col justify-between text-red-700 font-sans select-none">
+    <div className="min-h-screen bg-slate-50 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:24px_24px] flex flex-col justify-between text-blue-700 font-sans select-none">
       <Header currentScreen={screen} />
 
       {screen === 'splash' && (
-        <SplashScreen onShareScreen={startSharing} />
+        <SplashScreen
+          roomsRef={roomsRef}
+          onShareScreen={() => roomsRef.current?.handleAddRoom()}
+          onStartSharing={startSharing}
+        />
       )}
 
       {screen === 'dashboard' && (
@@ -204,13 +220,6 @@ export default function PresenterApp() {
           previewRef={previewRef}
           onExport={exportLog}
           isSharing={isSharing}
-        />
-      )}
-
-      {screen === 'ended' && (
-        <EndedScreen 
-          onStartNewSession={startSharing}
-          onExport={exportLog}
         />
       )}
 
