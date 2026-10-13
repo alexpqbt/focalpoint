@@ -9,6 +9,8 @@ dependencies = [
     "fastapi>=0.138.0",
     "fpdf2>=2.8.7",
     "livekit-api>=1.1.0",
+    "pyinstaller>=6.22.3",
     "pyyaml>=6.0.3",
+    "tk>=0.1.0",
     "uvicorn>=0.49.0",
 ]

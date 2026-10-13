@@ -40,3 +40,6 @@ node_modules/
 .aider*
 
 server/focalpoint.db
+build/
+dist/
+*.spec

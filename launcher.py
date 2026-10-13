@@ -9,7 +9,8 @@ import time
 import webbrowser
 from ctypes import wintypes
 from pathlib import Path
-
+import tkinter as tk
+from tkinter import messagebox
 import uvicorn
 
 FROZEN = getattr(sys, "frozen", False)
@@ -17,8 +18,19 @@ BASE = Path(sys.executable).parent if FROZEN else Path(__file__).resolve().paren
 SERVER_DIR = BASE / "server"
 SERVER_DIR.mkdir(exist_ok=True)
 os.chdir(SERVER_DIR)  # stopgap: keeps relative paths in server code working
-if not FROZEN:
-    sys.path.insert(0, str(SERVER_DIR))
+if FROZEN:
+    _log = open(BASE / "focalpoint.log", "a", buffering=1, encoding="utf-8")
+    sys.stdout = sys.stderr = _log
+    CHILD_OUT = _log
+else:
+    CHILD_OUT = None
+
+QUIET = dict(
+    creationflags=subprocess.CREATE_NO_WINDOW,
+    stdin=subprocess.DEVNULL,
+    stdout=CHILD_OUT or subprocess.DEVNULL,
+    stderr=subprocess.STDOUT,
+)
 
 processes = {}          # name -> Popen
 uvicorn_server = None
@@ -107,6 +119,7 @@ def start_livekit():
         [str(BASE / "livekit" / "livekit-server.exe"),
          "--config", str(BASE / "livekit" / "livekit.yaml")],
         cwd=BASE,
+        **QUIET
     )
     add_to_job(proc)
     processes["livekit"] = proc
@@ -136,6 +149,7 @@ def start_nginx():
     proc = subprocess.Popen(
         [str(nginx_path / "nginx.exe"), "-p", str(nginx_path), "-c", "conf/nginx.conf"],
         cwd=BASE,
+        **QUIET
     )
     add_to_job(proc)
     processes["nginx"] = proc
@@ -151,7 +165,7 @@ def shutdown():
         try:
             subprocess.run(
                 [str(BASE / "nginx" / "nginx.exe"), "-p", str(BASE / "nginx"), "-s", "stop"],
-                cwd=BASE, timeout=10,
+                cwd=BASE, timeout=10, **QUIET
             )
             processes["nginx"].wait(timeout=10)
         except Exception as e:
@@ -173,36 +187,65 @@ def shutdown():
     print("Shutdown complete.")
 
 
+URL = "http://localhost:8080/"
+
 def main():
     global job
+    job = create_kill_on_close_job()
+
+    root = tk.Tk()
+    root.title("Focalpoint")
+    root.geometry("340x170")
+    root.resizable(False, False)
+
+    status = tk.StringVar(value="Starting services...")
+    tk.Label(root, text="Focalpoint", font=("Segoe UI", 14, "bold")).pack(pady=(16, 2))
+    tk.Label(root, textvariable=status).pack()
+    tk.Button(root, text="Open host page",
+              command=lambda: webbrowser.open(URL)).pack(pady=(10, 4))
+    tk.Label(root, text="Close this window to stop the system.",
+             fg="gray").pack()
+
+    state = {"phase": "starting", "error": None}
+
+    def boot():
+        try:
+            ensure_env()
+            run_generate_configs()
+            start_livekit()
+            start_fastapi()
+            start_nginx()
+            state["phase"] = "running"
+        except Exception as e:
+            state["error"] = str(e)
+            state["phase"] = "failed"
+
+    def poll():
+        if state["phase"] == "running":
+            if not state.get("opened"):
+                state["opened"] = True
+                webbrowser.open(URL)
+            dead = [n for n, p in processes.items() if p.poll() is not None]
+            if uvicorn_thread and not uvicorn_thread.is_alive():
+                dead.append("fastapi")
+            status.set("The app is running." if not dead
+                       else f"Stopped unexpectedly: {', '.join(dead)}")
+        elif state["phase"] == "failed":
+            messagebox.showerror("Focalpoint failed to start", state["error"])
+            root.destroy()
+            return
+        root.after(1000, poll)
+
+    threading.Thread(target=boot, daemon=True).start()
+    root.after(500, poll)
     try:
-        job = create_kill_on_close_job()
-        ensure_env()
-        run_generate_configs()
-        start_livekit()
-        start_fastapi()
-        start_nginx()
-
-        url = "http://localhost:8080/"
-        print(f"Opening {url}")
-        webbrowser.open(url)
-
-        print("\nAll services running. Press Ctrl+C to stop.\n")
-        while True:
-            time.sleep(1)
-            for name, proc in processes.items():
-                if proc.poll() is not None:
-                    print(f"WARNING: {name} exited unexpectedly (code {proc.returncode})")
-            if not uvicorn_thread.is_alive():
-                print("WARNING: fastapi thread exited unexpectedly")
-
-    except KeyboardInterrupt:
-        pass
-    except Exception as e:
-        print(f"Launch failed: {e}")
+        root.mainloop()
     finally:
         shutdown()
 
-
 if __name__ == "__main__":
+    ctypes.windll.kernel32.CreateMutexW(None, False, "Global\\FocalpointLauncher")
+    if ctypes.windll.kernel32.GetLastError() == 183:  # ERROR_ALREADY_EXISTS
+        ctypes.windll.user32.MessageBoxW(0, "Focalpoint is already running.", "Focalpoint", 0x40)
+        sys.exit(0)
     main()
