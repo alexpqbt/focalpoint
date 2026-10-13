@@ -153,6 +153,26 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
     });
   };
 
+  const handleDeleteRoom = async () => {
+    if (!selectedRoom?.id) return;
+    if (!window.confirm('Delete this room? This cannot be undone.')) return;
+
+    try {
+      const res = await fetch(`/rooms/${selectedRoom.id}`, { method: 'DELETE' });
+      if (!res.ok && res.status !== 404) {
+        setInputError('Could not delete the room.');
+        return;
+      }
+      setRooms(prev => (prev || []).filter(r => r.id !== selectedRoom.id));
+      setSelectedRoom(null);
+      setIsCustomizing(false);
+      setIsModalOpen(false);
+      setInputError('');
+    } catch {
+      setInputError('Could not reach the server.');
+    }
+  };
+
   const handleSaveCustomization = async () => {
     if (saving) return;
 
@@ -371,13 +391,24 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
                     Save Customization
                   </button>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => setIsCustomizing(true)}
-                    className="border-2 border-blue-600 text-blue-600 hover:bg-blue-50 font-medium py-2 px-5 rounded-full text-sm transition-all"
-                  >
-                    Customize
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setIsCustomizing(true)}
+                      className="border-2 border-blue-600 text-blue-600 hover:bg-blue-50 font-medium py-2 px-5 rounded-full text-sm transition-all"
+                    >
+                      Customize
+                    </button>
+                    {selectedRoom?.id && (
+                      <button
+                        type="button"
+                        onClick={handleDeleteRoom}
+                        className="border-2 border-red-500 text-red-500 hover:bg-red-50 font-medium py-2 px-5 rounded-full text-sm transition-all"
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
 
