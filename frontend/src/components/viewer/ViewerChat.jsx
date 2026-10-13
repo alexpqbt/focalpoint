@@ -17,9 +17,10 @@ export default function ViewerChat({
   };
 
   return (
-    <div className="absolute inset-x-4 bottom-20 max-w-lg mx-auto bg-white rounded-xl shadow-2xl border border-blue-100 flex flex-col z-40 overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 bg-blue-50 border-b border-blue-100">
-        <span className="text-xs font-semibold text-blue-700">Chat Room ({viewerName})</span>
+    <div className="w-full h-full flex flex-col bg-white overflow-hidden shadow-2xl rounded-xl md:rounded-none md:shadow-none border border-blue-100 md:border-none">
+      
+      <div className="flex items-center justify-between px-4 py-3 bg-blue-50 border-b border-blue-100 shrink-0">
+        <span className="text-xs font-semibold text-blue-700">Messages ({viewerName})</span>
         <button 
           type="button"
           onClick={onClose} 
@@ -30,9 +31,9 @@ export default function ViewerChat({
         </button>
       </div>
 
-      <div className="p-4 max-h-48 overflow-y-auto space-y-2">
+      <div className="flex-1 overflow-y-auto p-4 space-y-2">
         {messages.length === 0 ? (
-          <p className="text-center text-xs text-slate-400 py-4">No messages yet.</p>
+          <p className="text-center text-xs text-slate-400 py-4">The messages are <strong>ONLY</strong> sent to the host.</p>
         ) : (
           messages.map((msg, idx) => (
             <div key={idx} className="border-b border-blue-50 pb-1 text-xs">
@@ -43,7 +44,7 @@ export default function ViewerChat({
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="p-3 border-t border-blue-100 flex gap-2 bg-white">
+      <form onSubmit={handleSubmit} className="p-3 border-t border-blue-100 flex gap-2 bg-white shrink-0">
         <input 
           type="text"
           value={newMsg}

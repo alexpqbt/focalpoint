@@ -12,61 +12,43 @@ export default function ViewerRoom({
   onSendMessage = () => {},
   onLeave = () => {},
 }) {
-  // 1. State to track if controls should be visible
   const [showControls, setShowControls] = useState(true);
-  
-  // 2. Ref to hold the timeout ID so we can reset it
   const timeoutRef = useRef(null);
 
-  // 3. Function to handle user activity
   const handleActivity = () => {
     setShowControls(true);
-    
-    // Clear any existing timer
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    if (!isChatOpen) {
+      timeoutRef.current = setTimeout(() => setShowControls(false), 3000);
     }
-    
-    // Set a new timer to hide controls after 3 seconds
-    timeoutRef.current = setTimeout(() => {
-      setShowControls(false);
-    }, 3000); // 3000ms = 3 seconds. Adjust as needed.
   };
 
-  // 4. Setup event listeners on mount
   useEffect(() => {
-    // Start the initial timer
     handleActivity();
-
-    // Listen for mouse movement (desktop), screen taps (mobile), and clicks
     window.addEventListener('mousemove', handleActivity);
     window.addEventListener('touchstart', handleActivity);
     window.addEventListener('click', handleActivity);
-
-    // Cleanup: remove listeners and clear timer when component unmounts
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       window.removeEventListener('mousemove', handleActivity);
       window.removeEventListener('touchstart', handleActivity);
       window.removeEventListener('click', handleActivity);
     };
-  }, []);
+  }, [isChatOpen]);
 
   return (
-    <main 
-      className={`relative flex flex-row items-center justify-center bg-black overflow-hidden h-[100dvh] w-full transition-colors ${
-        showControls ? 'cursor-default' : 'cursor-none'
-      }`}
-    >
+    <main className={`relative flex flex-row items-center justify-center bg-black overflow-hidden h-[100dvh] w-full transition-colors ${showControls ? 'cursor-default' : 'cursor-none'}`}>
       
-      {/* Video Feed Area */}
       <div className="flex-1 flex items-center justify-center p-4 min-w-0 h-full relative">
         <ViewerFeed videoRef={videoRef} />
       </div>
 
-      {/* Chat Sidebar */}
+      {/* Chat Container: Popup on Mobile, Sidebar on Desktop */}
       {isChatOpen && (
-        <div className="w-80 h-full flex-shrink-0 border-l border-gray-800 bg-gray-900 z-20">
+        <div className="
+          absolute bottom-32 left-4 right-4 max-h-[50vh] z-40 flex flex-col
+          md:static md:max-h-full md:h-full md:w-80 md:left-auto md:right-auto md:bottom-auto md:border-l md:border-gray-200 md:z-20
+        ">
           <ViewerChat
             viewerName={viewerName}
             messages={messages}
@@ -76,11 +58,7 @@ export default function ViewerRoom({
         </div>
       )}
 
-      <div 
-        className={`absolute bottom-6 left-1/2 -translate-x-1/2 z-30 transition-opacity duration-300 ease-in-out ${
-          showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
-      >
+      <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 z-30 transition-opacity duration-300 ease-in-out ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
         <ViewerControls onToggleChat={onToggleChat} onLeave={onLeave} />
       </div>
 
