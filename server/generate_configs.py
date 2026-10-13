@@ -3,8 +3,8 @@ import yaml
 from dotenv import load_dotenv
 from networking import get_local_ip
 from pathlib import Path
+from paths import BASE
 
-BASE = Path(__file__).resolve().parents[1]
 load_dotenv(BASE / ".env")
 
 def generate_livekit_yaml(local_ip):
@@ -91,8 +91,11 @@ http {{
         f.write(config)
     print(f"Generated: {path}")
 
-if __name__ == "__main__":
+def main():
     local_ip = get_local_ip()
     print(f"Detected IP: {local_ip}")
     generate_livekit_yaml(local_ip)
     generate_nginx_conf()
+
+if __name__ == "__main__":
+    main()

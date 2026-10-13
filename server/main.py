@@ -9,8 +9,9 @@ import log_session
 from pydantic import BaseModel
 import json
 import db
+from paths import BASE
 
-load_dotenv("../.env")
+load_dotenv(BASE / ".env")
 
 app = FastAPI()
 db.init()

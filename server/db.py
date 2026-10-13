@@ -3,8 +3,9 @@ import sqlite3
 from contextlib import closing
 from datetime import datetime
 from pathlib import Path
+from paths import SERVER_DIR
 
-DB_PATH = Path(__file__).parent / "focalpoint.db"
+DB_PATH = SERVER_DIR / "focalpoint.db"
 
 def _connect() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
