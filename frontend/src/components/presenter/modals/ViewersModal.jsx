@@ -7,12 +7,19 @@ export default function ViewersModal({
   onClose = () => {},
 }) {
   const [labels, setLabels] = useState([]);
+  const [fields, setFields] = useState([]);
 
   useEffect(() => {
     fetch('/room-config')
       .then((r) => r.json())
-      .then((c) => setLabels(c.user_inputs || []))
-      .catch(() => setLabels([]));
+      .then((c) => {
+        setLabels(c.user_inputs || []);
+        setFields(c.fields || []);
+      })
+      .catch(() => {
+        setLabels([]);
+        setFields([]);
+      });
   }, []);
 
   const handleRemoveViewer = (identity, e) => {
@@ -49,6 +56,16 @@ export default function ViewersModal({
             <X className="w-5 h-5" />
           </button>
         </div>
+        {fields.length > 0 && (
+          <div className="flex flex-wrap gap-x-6 gap-y-2 px-6 py-3 text-sm border-b border-blue-100 bg-blue-50/40">
+            {fields.map((f) => (
+              <div key={f.name} className="flex flex-col min-w-0">
+                <span className="font-semibold text-blue-400 text-xs uppercase">{f.name}</span>
+                <span className="text-blue-900 break-words">{f.value || '—'}</span>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="p-6 max-h-96 overflow-y-auto space-y-2">
           <div
             className="grid gap-4 text-xs font-semibold text-blue-400 uppercase border-b pb-2"
