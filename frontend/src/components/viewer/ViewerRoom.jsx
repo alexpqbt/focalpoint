@@ -37,7 +37,7 @@ export default function ViewerRoom({
   }, [isChatOpen]);
 
   return (
-    <main className={`relative flex flex-row items-center justify-center bg-black overflow-hidden h-[100dvh] w-full transition-colors ${showControls ? 'cursor-default' : 'cursor-none'}`}>
+    <main className={`relative flex flex-row items-center justify-center overflow-hidden h-[100dvh] w-full transition-colors ${showControls ? 'cursor-default' : 'cursor-none'}`}>
       
       <div className="flex-1 min-w-0 h-full relative flex items-center justify-center p-4 md:px-8 md:pt-6 md:pb-24">
         <ViewerFeed videoRef={videoRef} />

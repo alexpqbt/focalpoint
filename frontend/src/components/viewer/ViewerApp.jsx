@@ -112,7 +112,7 @@ export default function ViewerApp() {
   if (!ready) return <div className="p-8 text-blue-700">Loading…</div>;
 
   return (
-    <div className="min-h-screen flex flex-col bg-black">
+    <div className="min-h-screen flex flex-col bg-slate-900/90 backdrop-blur-md">
       {screen === 'join' && (
         <ViewerJoin onConnect={connect} />
       )}

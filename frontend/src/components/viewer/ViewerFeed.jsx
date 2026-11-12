@@ -7,7 +7,7 @@ export default function ViewerFeed({ videoRef }) {
         ref={videoRef}
         autoPlay
         playsInline
-        className="w-full h-full object-contain rounded-lg shadow-2xl bg-black"
+        className="w-full h-full object-contain rounded-lg"
       />
     </div>
   );
