@@ -251,6 +251,7 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
         body: JSON.stringify({
           user_inputs: userInputs,
           fields: cleanFields(selectedRoom.fields),
+          room_size: Number(selectedRoom.roomSize) || 51,
         }),
       });
       if (!res.ok) throw new Error();

@@ -22,9 +22,13 @@ def init() -> None:
                 created_at TEXT NOT NULL,
                 field_values TEXT NOT NULL,
                 columns TEXT NOT NULL,
-                rows TEXT NOT NULL
+                rows TEXT NOT NULL,
+                max_size INTEGER
             )
         """)
+        cols = {r["name"] for r in conn.execute("PRAGMA table_info(session_logs)")}
+        if "max_size" not in cols:
+            conn.execute("ALTER TABLE session_logs ADD COLUMN max_size INTEGER")
         conn.execute("""
             CREATE TABLE IF NOT EXISTS rooms (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,19 +47,21 @@ def _to_entry(row: sqlite3.Row) -> dict:
         "fieldValues": json.loads(row["field_values"]),
         "columns": json.loads(row["columns"]),
         "rows": json.loads(row["rows"]),
+        "maxSize": row["max_size"],
     }
 
-def save_log(columns: list[str], rows: list[list[str]], field_values: list[str]) -> dict:
+def save_log(columns: list[str], rows: list[list[str]], field_values: list[str],
+             max_size: int | None = None) -> dict:
     now = datetime.now()
     with closing(_connect()) as conn, conn:
         last = conn.execute("SELECT COALESCE(MAX(number), 0) FROM session_logs").fetchone()[0]
         number = last + 1
         label = f"Log {number}: {now.month}/{now.day}/{now.year}"
         cur = conn.execute(
-            "INSERT INTO session_logs (number, label, created_at, field_values, columns, rows) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO session_logs (number, label, created_at, field_values, columns, rows, max_size) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
             (number, label, now.isoformat(), json.dumps(field_values),
-             json.dumps(columns), json.dumps(rows)),
+             json.dumps(columns), json.dumps(rows), max_size),
         )
         row = conn.execute("SELECT * FROM session_logs WHERE id = ?", (cur.lastrowid,)).fetchone()
     return _to_entry(row)

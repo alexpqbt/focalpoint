@@ -79,7 +79,7 @@ def get_config():
         "server_ip": get_local_ip()
     }
 
-room_config = {"user_inputs": [], "fields": []}
+room_config = {"user_inputs": [], "fields": [], "room_size": None}
 
 class SessionField(BaseModel):
     name: str
@@ -88,6 +88,7 @@ class SessionField(BaseModel):
 class RoomConfig(BaseModel):
     user_inputs: list[str]
     fields: list[SessionField] = []
+    room_size: int | None = None
 
 @app.post("/room-config")
 async def set_room_config(cfg: RoomConfig, request: Request):
@@ -111,8 +112,12 @@ async def set_room_config(cfg: RoomConfig, request: Request):
     if len({f["name"].lower() for f in fields}) != len(fields):
         raise HTTPException(status_code=400, detail="Duplicate field names")
 
+    if cfg.room_size is not None and not (1 <= cfg.room_size <= 51):
+        raise HTTPException(status_code=400, detail="Room size must be a number from 1 to 51")
+
     room_config["user_inputs"] = labels
     room_config["fields"] = fields
+    room_config["room_size"] = cfg.room_size
     return room_config
 
 @app.get("/room-config")
@@ -172,7 +177,7 @@ async def export_logs(format: str = Query(default="csv"), _: None = Depends(veri
 
     if format == "pdf":
         return StreamingResponse(
-            iter([log_session.to_pdf_bytes(room_config["user_inputs"], room_config["fields"])]),
+            iter([log_session.to_pdf_bytes(room_config["user_inputs"], room_config["fields"], room_config["room_size"])]),
             media_type="application/pdf",
             headers={"Content-Disposition": "attachment; filename=log_session.pdf"},
         )
@@ -187,6 +192,8 @@ async def reset_logs(_: None = Depends(verify_admin)):
 class TableData(BaseModel):
     columns: list[str]
     rows: list[list[str]]
+    field_count: int = 0
+    max_size: int | None = None
 
 def require_localhost(request: Request) -> None:
     client_ip = request.headers.get("x-real-ip", request.client.host)
@@ -196,7 +203,9 @@ def require_localhost(request: Request) -> None:
 @app.get("/logs/snapshot")
 async def logs_snapshot(request: Request):
     require_localhost(request)
-    return log_session.snapshot(room_config["user_inputs"], room_config["fields"])
+    snap = log_session.snapshot(room_config["user_inputs"], room_config["fields"])
+    snap["max_size"] = room_config["room_size"]
+    return snap
 
 @app.post("/logs/render")
 async def logs_render(table: TableData, request: Request, format: str = Query(default="csv")):
@@ -213,8 +222,16 @@ async def logs_render(table: TableData, request: Request, format: str = Query(de
             headers={"Content-Disposition": "attachment; filename=log_session.csv"},
         )
     if format == "pdf":
+        if len(table.columns) < 4:
+            raise HTTPException(status_code=400, detail="PDF needs at least 4 columns")
+        if not 0 <= table.field_count <= 6:
+            raise HTTPException(status_code=400, detail="field_count must be 0 to 6")
+        if table.max_size is not None and not 1 <= table.max_size <= 51:
+            raise HTTPException(status_code=400, detail="max_size must be 1 to 51")
         return StreamingResponse(
-            iter([log_session.pdf_from_table(table.columns, table.rows)]),
+            iter([log_session.pdf_from_table(
+                table.columns, table.rows, table.field_count, table.max_size
+            )]),
             media_type="application/pdf",
             headers={"Content-Disposition": "attachment; filename=log_session.pdf"},
         )
@@ -224,6 +241,7 @@ class SavedLogIn(BaseModel):
     columns: list[str]
     rows: list[list[str]]
     field_values: list[str] = []
+    max_size: int | None = None
 
 @app.post("/logs/saved")
 async def save_session_log(data: SavedLogIn, request: Request):
@@ -234,7 +252,13 @@ async def save_session_log(data: SavedLogIn, request: Request):
         raise HTTPException(status_code=400, detail="Row length does not match columns")
     if not data.rows:
         return {"saved": False}
-    return {"saved": True, "entry": db.save_log(data.columns, data.rows, data.field_values)}
+    if data.max_size is not None and not 1 <= data.max_size <= 51:
+        raise HTTPException(status_code=400, detail="max_size must be 1 to 51")
+    # The session's room size was set at Share Screen. Use it unless the client sent one.
+    max_size = data.max_size if data.max_size is not None else room_config["room_size"]
+    return {"saved": True, "entry": db.save_log(
+        data.columns, data.rows, data.field_values, max_size
+    )}
 
 @app.get("/logs/saved")
 async def list_saved_logs(request: Request):

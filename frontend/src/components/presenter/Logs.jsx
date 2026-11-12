@@ -26,7 +26,12 @@ export default function Logs({
       const res = await fetch(`/logs/render?format=${format}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ columns, rows }),
+        body: JSON.stringify({
+          columns,
+          rows,
+          field_count: fieldValues.length,
+          max_size: log.maxSize ?? null,
+        }),
       });
       if (!res.ok) {
         const text = await res.text().catch(() => '');
