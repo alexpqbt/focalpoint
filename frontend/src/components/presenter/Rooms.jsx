@@ -1,6 +1,6 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { createPortal } from 'react-dom';
-import { Cast, X, Plus } from 'lucide-react';
+import { Cast, X, Plus, Info } from 'lucide-react';
 import Logs from './Logs';
 import { loadLogs } from '../util/logStore.js';
 
@@ -445,7 +445,7 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
 
                 {/* Fields Section */}
                 <div>
-                  <div className="mb-3">
+                  <div className="mb-3 flex items-center gap-2">
                     <button
                       type="button"
                       onClick={handleAddField}
@@ -453,6 +453,15 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
                     >
                       <span>Add Field</span>
                       <Plus className="w-4 h-4 font-bold" />
+                    </button>
+
+                    <button
+                      type="button"
+                      title="Describes the class as a whole, such as Section, Subject, or EDP Code. The value is repeated on every row of the exported log. Names up to 30 characters."
+                      aria-label="Add Field information"
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      <Info className="w-4 h-4" />
                     </button>
                   </div>
 
@@ -492,16 +501,25 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
 
                 {/* User Inputs Section */}
                 <div>
-                  <div className="mb-3">
-                    <button
-                      type="button"
-                      onClick={handleAddUserInput}
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-xl flex items-center gap-1.5 text-sm shadow-sm transition active:scale-95"
-                    >
-                      <span>User Inputs</span>
-                      <Plus className="w-4 h-4 font-bold" />
-                    </button>
-                  </div>
+                <div className="mb-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAddUserInput}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-xl flex items-center gap-1.5 text-sm shadow-sm transition active:scale-95"
+                  >
+                    <span>User Inputs</span>
+                    <Plus className="w-4 h-4 font-bold" />
+                  </button>
+
+                  <button
+                    type="button"
+                    title="Input fields students answer on the join screen, such as First Name or Last Name. Answers are joined into the student's display name and shown in the participant list. Each one becomes a column in the log. If none are added, students see a single Name field."
+                    aria-label="User Inputs information"
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <Info className="w-4 h-4" />
+                  </button>
+                </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                     {formData.userInputs?.map((input, idx) => (
