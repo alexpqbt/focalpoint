@@ -1,6 +1,5 @@
 import csv
 import io
-import math
 from datetime import datetime, timezone
 
 known_identities: set[str] = set()
@@ -91,79 +90,119 @@ def csv_from_table(columns, rows) -> str:
     writer.writerows(rows)
     return buf.getvalue()
 
-BLUE = (21, 96, 130)
-ORANGE = (233, 113, 50)
-GRAY = (89, 89, 89)
+NAVY = (0, 22, 62)
+BAND = (199, 231, 255)
+BAR_BORDER = (47, 111, 203)
+BAR_FILL = (120, 194, 255)
+DIVIDER = (129, 160, 189)
+WHITE = (255, 255, 255)
+
+MARGIN = 10
+BAND_H = 20
+ROW_H = 7
 
 def _safe(text) -> str:
     return str(text).encode("latin-1", "replace").decode("latin-1")
 
-def _draw_header(pdf, columns, widths):
+def _logo_path():
+    """frontend/dist/logo.png (build copies it) or frontend/public/logo.png (source)."""
+    try:
+        from paths import BASE
+    except ImportError:
+        return None
+    for sub in (("frontend", "dist"), ("frontend", "public")):
+        p = BASE.joinpath(*sub, "logo.png")
+        if p.exists():
+            return p
+    return None
+
+def _draw_band(pdf) -> None:
+    x, y, w = MARGIN, MARGIN + 2, pdf.w - 2 * MARGIN
+    pdf.set_fill_color(*BAND)
+    pdf.rect(x, y, w, BAND_H, style="F")
+    pdf.c_margin = 0
+
+    logo_end = x + 4
+    path = _logo_path()
+    drawn = False
+    if path:
+        try:
+            from PIL import Image
+            with Image.open(path) as im:
+                iw, ih = im.size
+            h = BAND_H - 8
+            pdf.image(str(path), x=x + 4, y=y + 4, h=h)
+            logo_end = x + 4 + h * iw / ih
+            drawn = True
+        except Exception:
+            drawn = False
+    if not drawn:
+        pdf.set_font("Helvetica", "B", 18)
+        pdf.set_text_color(*BAR_BORDER)
+        pdf.set_xy(x + 4, y + (BAND_H - 9) / 2)
+        tw = pdf.get_string_width("FocalPoint") + 1
+        pdf.cell(tw, 9, "FocalPoint")
+        logo_end = x + 4 + tw
+
+    dx = logo_end + 6
+    pdf.set_draw_color(*DIVIDER)
+    pdf.set_line_width(0.4)
+    pdf.line(dx, y + 4, dx, y + BAND_H - 4)
+
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.set_text_color(*NAVY)
+    pdf.set_xy(dx + 6, y + (BAND_H - 6) / 2)
+    pdf.cell(60, 6, "Session Report")
+
+def _pill(pdf, x, y, w, h, color) -> None:
+    pdf.set_fill_color(*color)
+    w = max(w, h)
+    pdf.ellipse(x, y, h, h, style="F")
+    if w > h:
+        pdf.ellipse(x + w - h, y, h, h, style="F")
+        pdf.rect(x + h / 2, y, w - h, h, style="F")
+
+def _draw_attendance(pdf, x, y, w, entered, max_size) -> float:
+    """Label, count and progress bar. Returns the y of the bottom edge."""
+    pdf.c_margin = 0
+    pdf.set_text_color(*NAVY)
     pdf.set_font("Helvetica", "B", 10)
-    pdf.set_text_color(0, 0, 0)
-    pdf.set_draw_color(0, 0, 0)
-    pdf.set_line_width(0.2)
-    last = len(columns) - 1
-    for i, (title, w) in enumerate(zip(columns, widths)):
-        border = "LTB" if i == 0 else ("TRB" if i == last else "TB")
-        pdf.cell(w, 7, _fit(pdf, title, w), border=border)
-    pdf.ln(7)
-    pdf.set_font("Helvetica", size=10)
+    label = "Attendance:"
+    lw = pdf.get_string_width(label) + 4
+    pdf.set_xy(x, y)
+    pdf.cell(lw, 6, label)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.cell(w - lw, 6, f"{entered}/{max_size}" if max_size else str(entered))
+    if not max_size:
+        return y + 6
 
-def _draw_attendance_chart(pdf, x, y, entered, not_entered) -> None:
-    box_w, box_h, radius = 150, 85, 28
-    cx, cy = x + box_w / 2, y + 46
+    bar_y, bar_h, inset = y + 9, 9, 0.7
+    _pill(pdf, x, bar_y, w, bar_h, BAR_BORDER)
+    _pill(pdf, x + inset, bar_y + inset, w - 2 * inset, bar_h - 2 * inset, WHITE)
+    if entered > 0:
+        inner_w = w - 2 * inset
+        fill_w = max(min(entered / max_size, 1.0) * inner_w, bar_h - 2 * inset)
+        _pill(pdf, x + inset, bar_y + inset, fill_w, bar_h - 2 * inset, BAR_FILL)
+    return bar_y + bar_h
 
-    pdf.set_draw_color(217, 217, 217)
-    pdf.set_line_width(0.3)
-    pdf.rect(x, y, box_w, box_h)
-
-    pdf.set_font("Helvetica", "", 12)
-    pdf.set_text_color(*GRAY)
-    pdf.set_xy(x, y + 4)
-    pdf.cell(box_w, 8, "Attendance", align="C")
-
-    total = entered + not_entered
-    slices = [(v, c) for v, c in ((entered, BLUE), (not_entered, ORANGE)) if v > 0]
-    if len(slices) == 1:
-        pdf.set_fill_color(*slices[0][1])
-        pdf.ellipse(cx - radius, cy - radius, 2 * radius, 2 * radius, style="F")
-    else:
-        pdf.set_draw_color(255, 255, 255)
-        pdf.set_line_width(0.6)
-        angle = -90.0
-        for value, color in slices:
-            sweep = 360.0 * value / total
-            steps = max(2, int(sweep / 2) + 1)
-            points = [(cx, cy)]
-            for i in range(steps + 1):
-                a = math.radians(angle + sweep * i / steps)
-                points.append((cx + radius * math.cos(a), cy + radius * math.sin(a)))
-            pdf.set_fill_color(*color)
-            pdf.polygon(points, style="DF")
-            angle += sweep
-
-    pdf.set_font("Helvetica", "", 8)
-    items = [("Entered", BLUE), ("Not Entered", ORANGE)]
-    sq, gap, between = 2.5, 1.5, 6
-    total_w = sum(sq + gap + pdf.get_string_width(n) for n, _ in items) + between * (len(items) - 1)
-    lx, ly = cx - total_w / 2, y + box_h - 8
-    for name, color in items:
-        pdf.set_fill_color(*color)
-        pdf.rect(lx, ly + 2, sq, sq, style="F")
-        pdf.set_xy(lx + sq + gap, ly)
-        w = pdf.get_string_width(name)
-        pdf.set_text_color(*GRAY)
-        pdf.cell(w, 6, name)
-        lx += sq + gap + w + between
+def _draw_table_header(pdf, columns, widths) -> None:
+    pdf.c_margin = 3
+    pdf.set_font("Helvetica", "B", 10)
+    pdf.set_text_color(*NAVY)
+    pdf.set_fill_color(*BAND)
+    pdf.set_x(MARGIN)
+    for title, w in zip(columns, widths):
+        pdf.cell(w, ROW_H + 0.5, _fit(pdf, title, w - 4), fill=True)
+    pdf.ln(ROW_H + 0.5)
+    pdf.set_font("Helvetica", "", 10)
 
 def pdf_from_table(columns, rows, field_count=0, max_size=None) -> bytes:
-    """Session report: header block, Time Stamp/Status/User Input table, attendance pie.
+    """Session report: banner, details, attendance bar and a Time Stamp/Status/User Input table.
 
     columns/rows use the layout from _build_table:
     Date, Time Stamp, Status, <user inputs...>, <session fields...>.
     field_count is how many trailing columns are session fields.
-    max_size is the room size; the attendance chart is skipped when it is None.
+    max_size is the room size. Without it the attendance shows a count and no bar.
     """
     from fpdf import FPDF
 
@@ -171,69 +210,84 @@ def pdf_from_table(columns, rows, field_count=0, max_size=None) -> bytes:
     n_inputs = len(columns) - 3 - field_count
     input_end = 3 + n_inputs
 
-    # Header values. Session fields are repeated on every row, so read the first row.
+    # Session fields repeat on every row, so the first row holds their values.
     field_names = list(columns[input_end:])
     field_vals = list(rows[0][input_end:]) if rows else [""] * len(field_names)
-    header = [("Date", rows[0][0] if rows else "")]
+    date = rows[0][0] if rows else ""
     if rows and rows[-1][0] != rows[0][0]:
-        header[0] = ("Date", f"{rows[0][0]} - {rows[-1][0]}")
-    header += list(zip(field_names, field_vals))
+        date = f"{rows[0][0]} - {rows[-1][0]}"
+    header = [("Date", date), *zip(field_names, field_vals)]
     if max_size is not None:
         header.append(("Max Size", max_size))
 
-    # Table drops the Date column and the session field columns.
+    def person(r):
+        return tuple(" ".join(str(v).split()).casefold() for v in r[3:input_end])
+
+    # Group each person's rows together, in order of first appearance.
+    groups: dict[tuple, list] = {}
+    for r in rows:
+        groups.setdefault(person(r), []).append(r)
+    # One Entered row (first join) and, if they ended up leaving, one Left row (final exit).
+    grouped = []
+    for g in groups.values():
+        grouped.append(g[0])
+        if len(g) > 1 and g[-1][2] == "Left":
+            grouped.append(g[-1])
+
     table_cols = [columns[1], columns[2], *columns[3:input_end]]
-    table_rows = [[r[1], r[2], *r[3:input_end]] for r in rows]
+    table_rows = [[r[1], r[2], *r[3:input_end]] for r in grouped]
+
+    # Unique first-time joiners. A rejoin with the same name counts once.
+    entered = len({person(r) for r in rows if r[2] == "Entered"})
 
     pdf = FPDF(orientation="L", format="Letter")
-    pdf.set_margins(25, 20, 25)
-    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.set_margins(MARGIN, MARGIN + 2, MARGIN)
+    pdf.set_auto_page_break(auto=True, margin=12)
     pdf.add_page()
-    usable = pdf.w - pdf.l_margin - pdf.r_margin
+    usable = pdf.w - 2 * MARGIN
 
-    pdf.set_font("Helvetica", "B", 16)
-    pdf.cell(0, 10, "FocalPoint Session Report")
-    pdf.ln(12)
+    _draw_band(pdf)
 
+    top = MARGIN + 2 + BAND_H + 8
+    pdf.c_margin = 0
+    pdf.set_font("Helvetica", "B", 10)
+    label_w = max(pdf.get_string_width(f"{l}:") for l, _ in header) + 4
+    left_w = 90
+    line_h = 5.5
+    y = top
     for label, value in header:
-        label_text = _safe(f"{label}:")
+        pdf.set_text_color(*NAVY)
         pdf.set_font("Helvetica", "B", 10)
-        w = pdf.get_string_width(label_text) + 1.5
-        pdf.cell(w, 6, label_text)
+        pdf.set_xy(MARGIN, y)
+        pdf.cell(label_w, line_h, _safe(f"{label}:"))
         pdf.set_font("Helvetica", "", 10)
-        pdf.cell(usable - w, 6, _fit(pdf, value, usable - w))
-        pdf.ln(6)
-    pdf.ln(4)
+        pdf.cell(left_w - label_w, line_h, _fit(pdf, value, left_w - label_w))
+        y += line_h
+    info_bottom = y
 
-    fixed = [32, 32]
+    att_x = MARGIN + left_w + 10
+    bar_bottom = _draw_attendance(
+        pdf, att_x, top, pdf.w - MARGIN - att_x, entered,
+        int(max_size) if max_size else None,
+    )
+
+    pdf.set_y(max(info_bottom, bar_bottom) + 8)
+    fixed = [45, 40]
     rest = (usable - sum(fixed)) / max(len(table_cols) - 2, 1)
     widths = fixed + [rest] * (len(table_cols) - 2)
 
-    _draw_header(pdf, table_cols, widths)
-    last = len(table_cols) - 1
-    row_h = 6.5
-    for row in table_rows:
-        if pdf.get_y() + row_h > pdf.h - pdf.b_margin:
+    _draw_table_header(pdf, table_cols, widths)
+    for idx, row in enumerate(table_rows):
+        if pdf.get_y() + ROW_H > pdf.h - pdf.b_margin:
             pdf.add_page()
-            _draw_header(pdf, table_cols, widths)
-        pdf.set_text_color(0, 0, 0)
-        pdf.set_draw_color(0, 0, 0)
-        pdf.set_line_width(0.2)
-        for i, (text, w) in enumerate(zip(row, widths)):
-            border = "LTB" if i == 0 else ("TRB" if i == last else "TB")
-            pdf.cell(w, row_h, _fit(pdf, text, w), border=border)
-        pdf.ln(row_h)
-
-    if max_size is not None:
-        # Unique attendees who entered at least once. Reconnects count once.
-        attendees = {tuple(r[3:input_end]) for r in rows if r[2] == "Entered"}
-        entered = len(attendees)
-        not_entered = max(int(max_size) - entered, 0)
-        chart_h = 85
-        pdf.ln(8)
-        if pdf.get_y() + chart_h > pdf.h - pdf.b_margin:
-            pdf.add_page()
-        _draw_attendance_chart(pdf, pdf.l_margin, pdf.get_y(), entered, not_entered)
+            _draw_table_header(pdf, table_cols, widths)
+        pdf.c_margin = 3
+        pdf.set_text_color(*NAVY)
+        pdf.set_fill_color(*BAND)
+        pdf.set_x(MARGIN)
+        for text, w in zip(row, widths):
+            pdf.cell(w, ROW_H, _fit(pdf, text, w - 4), fill=(idx % 2 == 1))
+        pdf.ln(ROW_H)
 
     output = pdf.output()
     if isinstance(output, str):
