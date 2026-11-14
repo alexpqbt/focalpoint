@@ -29,7 +29,7 @@ Each class is saved as a **room**. A room holds:
 - **Session Fields** — named values describing the class as a whole
   (e.g. Section = BSIT 4C, Subject = IT-ELEC 3, EDP Code = 124897). These
   appear as columns in the exported log.
-- **Room size** — the maximum number of viewers (1 to 51).
+- **Room size** — the maximum number of viewers (1 to 50).
 
 After a session ends, the log (Date, Time Stamp, Status, one column per user
 input, one column per session field) is saved to a local SQLite database and
@@ -308,7 +308,7 @@ To distribute, copy the whole `dist/Focalpoint/` folder, not only the `.exe`.
    reopens it if the tab was closed.
 2. Press **Add Room**. The new room is a draft and is saved only when you
    press **Save Customization**; closing the modal discards it. Set:
-   - **Room size** (1 to 51).
+   - **Room size** (1 to 50).
    - **Fields** (up to 6): each has a name (up to 30 characters) and a value
      (up to 50). The values are repeated on every row of the log.
    - **User Inputs** (up to 5 labels, 30 characters each). Without any, students
