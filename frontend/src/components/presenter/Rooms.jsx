@@ -23,6 +23,8 @@ const DEFAULT_FIELDS = [
   { name: 'EDP Code', value: '' },
 ];
 
+const ROOM_SIZE = 50;
+
 const copyFields = (fields = []) => fields.map(f => ({ ...f }));
 
 const cleanFields = (fields = []) =>
@@ -91,7 +93,7 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
     const draft = {
       id: null,
       label: 'New Room',
-      roomSize: '51',
+      roomSize: ROOM_SIZE,
       fields: copyFields(DEFAULT_FIELDS),
       userInputs: ['First Name', 'Last Name'],
     };
@@ -178,10 +180,10 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
 
     const userInputs = cleanUserInputs(formData.userInputs);
     const fields = cleanFields(formData.fields);
-    const roomSize = String(formData.roomSize ?? '').trim() || '51';
+    const roomSize = String(formData.roomSize ?? '').trim() || ROOM_SIZE;
 
-    if (!/^\d+$/.test(roomSize) || Number(roomSize) < 1 || Number(roomSize) > 51) {
-      setInputError('Room size must be a number from 1 to 51.');
+    if (!/^\d+$/.test(roomSize) || Number(roomSize) < 1 || Number(roomSize) > ROOM_SIZE) {
+      setInputError(`Room size must be a number from 1 to ${ROOM_SIZE}.`);
       return;
     }
     const dupInput = findDuplicate(userInputs);
@@ -251,7 +253,7 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
         body: JSON.stringify({
           user_inputs: userInputs,
           fields: cleanFields(selectedRoom.fields),
-          room_size: Number(selectedRoom.roomSize) || 51,
+          room_size: Number(selectedRoom.roomSize) || ROOM_SIZE,
         }),
       });
       if (!res.ok) throw new Error();
@@ -433,13 +435,13 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
                 {/* Room Size Section */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                    Room size (Max 51)
+                    Room size (Max {ROOM_SIZE})
                   </label>
                   <input
                     type="text"
-                    value={formData.roomSize ?? '51'}
+                    value={formData.roomSize ?? ROOM_SIZE}
                     onChange={(e) => setFormData(prev => ({ ...prev, roomSize: e.target.value }))}
-                    placeholder="51"
+                    placeholder={ROOM_SIZE}
                     className="w-72 border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-xs"
                   />
                 </div>
@@ -563,7 +565,7 @@ const Rooms = forwardRef(function Rooms({ className = '', onShareScreen = () => 
                   <div className="text-base">
                     <span className="font-bold text-gray-800">Max Size: </span>
                     <span className="text-gray-600">
-                      {selectedRoom.roomSize ? `${selectedRoom.roomSize}` : 'Not Set (Default 51)'}
+                      {selectedRoom.roomSize ? `${selectedRoom.roomSize}` : `Not Set (Default ${ROOM_SIZE})`}
                     </span>
                   </div>
                 </div>

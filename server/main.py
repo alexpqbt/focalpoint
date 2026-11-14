@@ -27,6 +27,7 @@ API_KEY = os.environ.get("LIVEKIT_API_KEY", "fallback_key")
 API_SECRET = os.environ.get("LIVEKIT_API_SECRET", "fallback_secret")
 ROOM_NAME = os.environ.get("LIVEKIT_ROOM_NAME", "classroom")
 os.environ["LIVEKIT_URL"] = f"ws://{get_local_ip()}:7880"
+ROOM_SIZE = 50
 
 @app.get("/token", response_class=PlainTextResponse)
 async def get_token(
@@ -112,8 +113,8 @@ async def set_room_config(cfg: RoomConfig, request: Request):
     if len({f["name"].lower() for f in fields}) != len(fields):
         raise HTTPException(status_code=400, detail="Duplicate field names")
 
-    if cfg.room_size is not None and not (1 <= cfg.room_size <= 51):
-        raise HTTPException(status_code=400, detail="Room size must be a number from 1 to 51")
+    if cfg.room_size is not None and not (1 <= cfg.room_size <= ROOM_SIZE):
+        raise HTTPException(status_code=400, detail=f"Room size must be a number from 1 to {ROOM_SIZE}")
 
     room_config["user_inputs"] = labels
     room_config["fields"] = fields
@@ -226,8 +227,8 @@ async def logs_render(table: TableData, request: Request, format: str = Query(de
             raise HTTPException(status_code=400, detail="PDF needs at least 4 columns")
         if not 0 <= table.field_count <= 6:
             raise HTTPException(status_code=400, detail="field_count must be 0 to 6")
-        if table.max_size is not None and not 1 <= table.max_size <= 51:
-            raise HTTPException(status_code=400, detail="max_size must be 1 to 51")
+        if table.max_size is not None and not 1 <= table.max_size <= ROOM_SIZE:
+            raise HTTPException(status_code=400, detail=f"max_size must be 1 to {ROOM_SIZE}")
         return StreamingResponse(
             iter([log_session.pdf_from_table(
                 table.columns, table.rows, table.field_count, table.max_size
@@ -252,8 +253,8 @@ async def save_session_log(data: SavedLogIn, request: Request):
         raise HTTPException(status_code=400, detail="Row length does not match columns")
     if not data.rows:
         return {"saved": False}
-    if data.max_size is not None and not 1 <= data.max_size <= 51:
-        raise HTTPException(status_code=400, detail="max_size must be 1 to 51")
+    if data.max_size is not None and not 1 <= data.max_size <= ROOM_SIZE:
+        raise HTTPException(status_code=400, detail=f"max_size must be 1 to {ROOM_SIZE}")
     # The session's room size was set at Share Screen. Use it unless the client sent one.
     max_size = data.max_size if data.max_size is not None else room_config["room_size"]
     return {"saved": True, "entry": db.save_log(
@@ -266,14 +267,14 @@ async def list_saved_logs(request: Request):
     return db.list_logs()
 
 class RoomIn(BaseModel):
-    room_size: str = "51"
+    room_size: str = f"{ROOM_SIZE}"
     fields: list[SessionField] = []
     user_inputs: list[str] = []
 
 def clean_room(data: RoomIn):
-    size = data.room_size.strip() or "51"
-    if not size.isdigit() or not (1 <= int(size) <= 51):
-        raise HTTPException(status_code=400, detail="Room size must be a number from 1 to 51")
+    size = data.room_size.strip() or f"{ROOM_SIZE}"
+    if not size.isdigit() or not (1 <= int(size) <= ROOM_SIZE):
+        raise HTTPException(status_code=400, detail=f"Room size must be a number from 1 to {ROOM_SIZE}")
 
     labels = [l.strip() for l in data.user_inputs if l.strip()]
     if len(labels) > 5 or any(len(l) > 30 for l in labels):
