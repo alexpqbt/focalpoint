@@ -6,8 +6,8 @@ export const VIDEO_CFG = {
   contentHint: "text",
   resolution: {
     frameRate: 15,
-    height: 1280,
-    width: 720,
+    height: 1980,
+    width: 1080,
   }
 }
 
