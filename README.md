@@ -102,9 +102,12 @@ Manager.
 | Screen Capture | Browser `getDisplayMedia` API |
 | Frontend | React + React Router + Tailwind (Vite dev server) |
 | Viewer/Host Client | React components using the LiveKit JS SDK |
+| Icons | lucide-react |
 | Log export | Server-side CSV and PDF (fpdf2) |
 | Process orchestration | `launcher.py` (Tkinter status window, Windows Job Object) |
 | Packaging | PyInstaller (onedir), driven by `build.py` |
+| Frontend tests | Vitest + Testing Library (jsdom) |
+| Backend tests | pytest + httpx |
 
 ## Platform
 
@@ -139,20 +142,47 @@ focalpoint/
 ├── README.md
 ├── LICENSE
 ├── frontend/
+│   ├── eslint.config.js
+│   ├── index.html
+│   ├── package.json
+│   ├── public/
+│   │   └── logo.png
 │   ├── src/
 │   │   ├── assets/
 │   │   ├── components/
 │   │   │   ├── common/
+│   │   │   │   ├── Footer.jsx
+│   │   │   │   └── Header.jsx
 │   │   │   ├── presenter/
+│   │   │   │   ├── modals/
+│   │   │   │   │   ├── ChatModal.jsx
+│   │   │   │   │   ├── QrModal.jsx
+│   │   │   │   │   └── ViewersModal.jsx
+│   │   │   │   ├── BroadcastScreen.jsx
+│   │   │   │   ├── Dashboard.jsx
+│   │   │   │   ├── Logs.jsx
+│   │   │   │   ├── PresenterApp.jsx
+│   │   │   │   ├── Rooms.jsx
+│   │   │   │   ├── Sidebar.jsx
+│   │   │   │   └── SplashScreen.jsx
 │   │   │   ├── util/
+│   │   │   │   ├── logStore.js
+│   │   │   │   └── polyfill.js
 │   │   │   ├── viewer/
+│   │   │   │   ├── ViewerApp.jsx
+│   │   │   │   ├── ViewerChat.jsx
+│   │   │   │   ├── ViewerControls.jsx
+│   │   │   │   ├── ViewerFeed.jsx
+│   │   │   │   ├── ViewerJoin.jsx
+│   │   │   │   └── ViewerRoom.jsx
 │   │   │   └── config.js
-│   │   ├── Apps.jsx
+│   │   ├── test/
+│   │   │   └── setup.js
+│   │   ├── App.jsx
 │   │   ├── index.css
 │   │   └── main.jsx
-│   ├── index.html
-│   ├── package.json
-│   └── vite.config.js
+│   ├── vite.config.js
+│   └── vitest.config.js
 ├── nginx/
 │   ├── conf/
 │   │   ├── mime.types
@@ -162,6 +192,15 @@ focalpoint/
 │   ├── livekit-server.exe
 │   └── livekit.yaml           ← generated at every launch
 └── server/
+    ├── tests/
+    │   ├── conftest.py
+    │   ├── test_log_session.py
+    │   ├── test_logs_endpoints.py
+    │   ├── test_logs_export_render.py
+    │   ├── test_participants_endpoints.py
+    │   ├── test_room_flow.py
+    │   ├── test_rooms_endpoints.py
+    │   └── test_token_endpoint.py
     ├── db.py
     ├── focalpoint.db          ← generated at first launch
     ├── generate_configs.py
@@ -284,11 +323,11 @@ Options:
 
 | Flag | Effect |
 |---|---|
-| `--windowed` | Builds without a console window. Use for the release build. |
+| `--windowed` | Builds **with** a console window. Useful while debugging. |
 | `--skip-frontend` | Skips `pnpm build` and reuses the current `frontend/dist`. |
 
-The default build keeps a console window open, which is useful while
-debugging. PyInstaller recreates `dist/Focalpoint/` on every build, so the
+The default build (no flags) produces no console window and is the release
+build. PyInstaller recreates `dist/Focalpoint/` on every build, so the
 external files are copied again each time. `build/`, `dist/`, and
 `Focalpoint.spec` are build output and are excluded from version control.
 
