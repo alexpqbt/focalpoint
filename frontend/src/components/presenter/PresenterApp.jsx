@@ -65,7 +65,7 @@ export default function PresenterApp() {
       const text = await reader.readAll();
       const participant = room.remoteParticipants.get(info.identity);
       const senderName = participant?.name || info.identity;
-      setMessages(prev => [...prev, { name: senderName, text }]);
+      setMessages(prev => [...prev.slice(-19), { name: senderName, text }]);
     });
   }, []);
 
