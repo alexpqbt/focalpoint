@@ -8,7 +8,34 @@ import PresenterApp from './PresenterApp'
 // Mocks: LiveKit, qrcode, config and the screens that are not under test.
 // Sidebar, ViewersModal and QrModal are the REAL components.
 // ---------------------------------------------------------------------------
-const h = vi.hoisted(() => ({ rooms: [], toCanvas: vi.fn() }))
+//
+// IMPORTANT: navigator.clipboard (and document.execCommand) must be installed
+// inside vi.hoisted so they exist BEFORE any module is imported. Components
+// such as QrModal commonly capture `navigator.clipboard` once at module-load
+// time; installing the mock only in beforeEach is too late and leaves the
+// component's captured reference as `undefined`. That was the root cause of
+// the CASE-038 failure ("writeText calls: []").
+//
+const h = vi.hoisted(() => {
+  const writeText = vi.fn().mockResolvedValue(undefined)
+  const write = vi.fn().mockResolvedValue(undefined)
+  const execCommand = vi.fn(() => true)
+  try {
+    Object.defineProperty(globalThis.navigator, 'clipboard', {
+      value: { writeText, write, readText: vi.fn() },
+      configurable: true,
+      writable: true,
+    })
+  } catch { /* navigator may be sealed in some environments */ }
+  try {
+    Object.defineProperty(globalThis.document, 'execCommand', {
+      value: execCommand,
+      configurable: true,
+      writable: true,
+    })
+  } catch { /* ignore – jsdom doesn't define it by default */ }
+  return { rooms: [], toCanvas: vi.fn(), writeText, write, execCommand }
+})
 
 vi.mock('livekit-client', () => {
   class Room {
@@ -66,7 +93,6 @@ let roomConfig
 let removeStatus
 let fetchMock
 let intervalSpy
-let writeText
 
 const callsTo = (pred) => fetchMock.mock.calls.filter(([u, o]) => pred(u, o))
 const participantPolls = () => callsTo((u) => u === '/participants')
@@ -78,10 +104,20 @@ const removeButtons = () => screen.queryAllByRole('button', { name: 'Remove' })
 
 async function startBroadcast() {
   const user = userEvent.setup()
+
+  // userEvent.setup() swaps navigator.clipboard for its own stub, so install
+  // the spy *afterwards* — otherwise the component's click handler hits the
+  // stub and our mock never records anything.
+  const clipboardSpy = vi.fn().mockResolvedValue(undefined)
+  Object.defineProperty(navigator, 'clipboard', {
+    value: { writeText: clipboardSpy },
+    configurable: true,
+  })
+
   render(<PresenterApp />)
   await user.click(await screen.findByRole('button', { name: 'Share Screen' }))
   await screen.findByRole('complementary')
-  return { user }
+  return { user, clipboardSpy }
 }
 
 const openViewers = (user) => user.click(sidebar().getByText(/^Viewers:/))
@@ -101,8 +137,13 @@ beforeEach(() => {
   removeStatus = 200
   h.rooms.length = 0
   h.toCanvas.mockReset()
-  writeText = vi.fn().mockResolvedValue(undefined)
-  Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+  // Reset the hoisted mocks — vi.restoreAllMocks() in afterEach may have
+  // stripped their implementation, so reinstall it here.
+  h.writeText.mockReset().mockResolvedValue(undefined)
+  h.write.mockReset().mockResolvedValue(undefined)
+  h.execCommand.mockReset().mockReturnValue(true)
+  // (Do NOT reinstall navigator.clipboard here — the hoisted object must stay
+  //  the same one so module-scope captures remain wired to our mocks.)
   vi.stubGlobal('MediaStream', class { constructor(tracks) { this.tracks = tracks } })
   intervalSpy = vi.spyOn(globalThis, 'setInterval')
 
@@ -426,12 +467,12 @@ describe('CASE-037: session URL below the QR code', () => {
 
 describe('CASE-038: Copy button', () => {
   it('copies the viewer URL and shows "Copied"', async () => {
-    const { user } = await startBroadcast()
+    const { user, clipboardSpy } = await startBroadcast()
     await openQr(user)
 
     await user.click(screen.getByRole('button', { name: /Copy/ }))
 
-    expect(writeText).toHaveBeenCalledWith('http://192.168.1.10:8080/view')
+    expect(clipboardSpy).toHaveBeenCalledWith('http://192.168.1.10:8080/view')
     expect(screen.getByRole('button', { name: /Copied/ })).toBeInTheDocument()
   })
 })

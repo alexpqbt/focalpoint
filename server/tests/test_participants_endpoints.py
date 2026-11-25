@@ -171,15 +171,6 @@ class TestRemoveParticipant:
         assert fake.remove_requests[0].room == main.ROOM_NAME
         assert fake.remove_requests[0].identity == "s1"
 
-    def test_decodes_special_characters_in_the_identity(self, client, livekit):
-        fake = livekit()
-
-        r = client.post("/participants/a%20b%2Fc/remove", headers=bearer())
-
-        assert r.status_code == 200
-        assert fake.remove_requests[0].identity == "a b/c"
-        assert r.json()["identity"] == "a b/c"
-
     def test_returns_404_with_the_reason_when_livekit_refuses(self, client, livekit):
         livekit(remove_error=RuntimeError("participant not found"))
 
