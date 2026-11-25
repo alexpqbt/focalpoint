@@ -12,6 +12,7 @@ export default function ViewerApp() {
   const [messages, setMessages] = useState([]);
   const [ready, setReady] = useState(false);
   const [stream, setStream] = useState(null);
+  const [joinError, setJoinError] = useState(null);
 
   const roomRef = useRef(null);
   const videoRef = useRef(null);
@@ -22,11 +23,18 @@ export default function ViewerApp() {
 
   const connect = useCallback(async (name, answers = {}) => {
     if (!ready) return;
+    setJoinError(null);
     try {
       const identity = 'student-' + Math.random().toString(36).substring(2, 9);
-      const token = await fetch(
+      const res = await fetch(
         `/token?role=student&identity=${identity}&name=${encodeURIComponent(name)}&answers=${encodeURIComponent(JSON.stringify(answers))}`
-      ).then((r) => r.text());
+      );
+      if (res.ok === false) {
+        const body = await res.json().catch(() => ({}));
+        setJoinError(body.detail || 'Could not join session');
+        return;
+      }
+      const token = await res.text();
 
       const room = new Room();
       roomRef.current = room;
@@ -54,6 +62,7 @@ export default function ViewerApp() {
       setScreen('room');
     } catch (err) {
       console.error('Failed to join session', err);
+      setJoinError('Could not connect to session');
     }
   }, [ready]);
 
@@ -114,7 +123,7 @@ export default function ViewerApp() {
   return (
     <div className="min-h-screen flex flex-col bg-slate-900/90 backdrop-blur-md">
       {screen === 'join' && (
-        <ViewerJoin onConnect={connect} />
+        <ViewerJoin onConnect={connect} joinError={joinError} />
       )}
 
       {screen === 'room' && (

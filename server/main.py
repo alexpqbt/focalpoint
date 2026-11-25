@@ -41,6 +41,19 @@ async def get_token(
         client_ip = request.headers.get("x-real-ip", request.client.host)
         if client_ip not in ("127.0.0.1", "::1"):
             raise HTTPException(status_code=403, detail="Presenter access is restricted to this machine")
+    else:
+        limit = room_config.get("room_size")
+        if limit is not None:
+            async with api.LiveKitAPI(api_key=API_KEY, api_secret=API_SECRET) as lkapi:
+                res = await lkapi.room.list_participants(
+                    api.ListParticipantsRequest(room=ROOM_NAME)
+                )
+            viewer_count = sum(
+                1 for p in res.participants
+                if not (p.identity == "presenter" and p.name == "presenter")
+            )
+            if viewer_count >= limit:
+                raise HTTPException(status_code=403, detail="Room is full")
 
     can_publish = role == "presenter"
     is_admin = role == "presenter"

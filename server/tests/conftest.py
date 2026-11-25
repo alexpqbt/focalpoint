@@ -6,6 +6,7 @@ Requires: uv add --dev pytest httpx   (run inside server/)
 """
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -24,6 +25,35 @@ db.init = lambda: None
 import main  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from livekit import api  # noqa: E402
+
+
+class FakeLiveKit:
+    """Stands in for `async with api.LiveKitAPI(...) as lkapi`."""
+
+    def __init__(self, participants=()):
+        self.participants = list(participants)
+        self.room = SimpleNamespace(
+            list_participants=self._list,
+            remove_participant=self._remove,
+        )
+
+    async def _list(self, request):
+        return SimpleNamespace(participants=self.participants)
+
+    async def _remove(self, request):
+        pass
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+
+def lk_person(identity, name, attributes=None, joined_at=1700000000):
+    return SimpleNamespace(
+        identity=identity, name=name, joined_at=joined_at, attributes=attributes or {}
+    )
 
 LOCAL = {"x-real-ip": "127.0.0.1"}
 REMOTE = {"x-real-ip": "192.168.1.50"}
@@ -49,6 +79,16 @@ def make_token(admin: bool = True) -> str:
 
 def bearer(admin: bool = True) -> dict:
     return {"Authorization": f"Bearer {make_token(admin)}"}
+
+
+@pytest.fixture(autouse=True)
+def default_livekit(monkeypatch):
+    """Patch api.LiveKitAPI to return an empty room for every test.
+
+    Tests that need specific participants install their own patch afterwards
+    (the last monkeypatch wins), so this never interferes with them.
+    """
+    monkeypatch.setattr(main.api, "LiveKitAPI", lambda *a, **k: FakeLiveKit())
 
 
 @pytest.fixture

@@ -165,3 +165,59 @@ class TestPresenterToken:
         r = get_token(client, headers=LOCAL, role="presenter", identity="presenter", answers=answers)
 
         assert not claims_of(r.text).attributes
+
+
+# ---------------------------------------------------------------------------
+class TestRoomSizeLimit:
+    """The /token endpoint must reject viewers when the room is full."""
+
+    @pytest.fixture
+    def with_limit(self, monkeypatch):
+        """Set room_size to 2 and return a helper that installs a fake participant list."""
+        monkeypatch.setitem(main.room_config, "room_size", 2)
+
+        def install(participants=()):
+            from conftest import FakeLiveKit
+            monkeypatch.setattr(main.api, "LiveKitAPI", lambda *a, **k: FakeLiveKit(participants))
+
+        return install
+
+    def test_viewer_joins_when_room_is_not_full(self, client, with_limit):
+        from conftest import lk_person
+        with_limit([lk_person("s1", "Ana")])
+
+        r = get_token(client, role="student", identity="s2", name="Bob")
+
+        assert r.status_code == 200
+
+    def test_viewer_is_refused_when_room_is_full(self, client, with_limit):
+        from conftest import lk_person
+        with_limit([lk_person("s1", "Ana"), lk_person("s2", "Bob")])
+
+        r = get_token(client, role="student", identity="s3", name="Caz")
+
+        assert r.status_code == 403
+        assert r.json()["detail"] == "Room is full"
+
+    def test_presenter_is_not_blocked_even_when_room_is_full(self, client, with_limit):
+        from conftest import lk_person
+        with_limit([lk_person("s1", "Ana"), lk_person("s2", "Bob")])
+
+        r = get_token(client, headers=LOCAL, role="presenter", identity="presenter")
+
+        assert r.status_code == 200
+
+    def test_presenter_in_livekit_does_not_count_toward_the_limit(self, client, with_limit):
+        from conftest import lk_person
+        # presenter + 1 viewer == the room_size is 2, but only 1 non-presenter viewer
+        with_limit([lk_person("presenter", "presenter"), lk_person("s1", "Ana")])
+
+        r = get_token(client, role="student", identity="s2", name="Bob")
+
+        assert r.status_code == 200
+
+    def test_no_limit_set_means_anyone_can_join(self, client):
+        # room_size is None by default (reset_room_config autouse fixture)
+        r = get_token(client, role="student", identity="s1", name="Ana")
+
+        assert r.status_code == 200

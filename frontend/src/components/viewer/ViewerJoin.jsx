@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-export default function ViewerJoin({ onConnect = () => {} }) {
+export default function ViewerJoin({ onConnect = () => {}, joinError = null }) {
   const [userInputs, setUserInputs] = useState(null);
   const [answers, setAnswers] = useState({});
   const [name, setName] = useState('');
@@ -70,6 +70,9 @@ export default function ViewerJoin({ onConnect = () => {} }) {
                 autoFocus={i === 0}
               />
             ))
+          )}
+          {joinError && (
+            <p className="text-sm text-red-600 text-center">{joinError}</p>
           )}
           <button
             type="submit"
