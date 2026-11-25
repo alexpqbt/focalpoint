@@ -1,0 +1,73 @@
+flowchart LR
+
+subgraph 0["src"]
+1["App.jsx"]
+subgraph 2["components"]
+subgraph 3["presenter"]
+4["PresenterApp.jsx"]
+E["Dashboard.jsx"]
+F["BroadcastScreen.jsx"]
+G["Sidebar.jsx"]
+subgraph H["modals"]
+I["ChatModal.jsx"]
+J["QrModal.jsx"]
+K["ViewersModal.jsx"]
+end
+L["SplashScreen.jsx"]
+N["Rooms.jsx"]
+O["Logs.jsx"]
+W["EndedScreen.jsx"]
+end
+subgraph 5["common"]
+6["Footer.jsx"]
+7["Header.jsx"]
+end
+A["config.js"]
+subgraph B["util"]
+C["logStore.js"]
+D["polyfill.js"]
+end
+subgraph P["viewer"]
+Q["ViewerApp.jsx"]
+R["ViewerJoin.jsx"]
+S["ViewerRoom.jsx"]
+T["ViewerChat.jsx"]
+U["ViewerControls.jsx"]
+V["ViewerFeed.jsx"]
+end
+end
+subgraph 8["assets"]
+9["logo1.png"]
+M["logo2.png"]
+end
+X["main.jsx"]
+Y["index.css"]
+end
+1-->4
+1-->Q
+4-->6
+4-->7
+4-->A
+4-->C
+4-->D
+4-->E
+4-->I
+4-->J
+4-->K
+4-->L
+7-->9
+E-->F
+E-->G
+L-->M
+L-->N
+N-->C
+N-->O
+Q-->A
+Q-->D
+Q-->R
+Q-->S
+S-->T
+S-->U
+S-->V
+X-->1
+X-->Y
